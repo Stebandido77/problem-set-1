@@ -1,0 +1,7 @@
+# <tipo>(<alcance>): <resumen en imperativo, <= 72 caracteres>
+#
+# Tipos: feat | fix | refactor | docs | data | chore | test
+#
+# Cuerpo (opcional): que cambio y por que, no como.
+#
+# NO agregar trailers de coautoria de asistentes de IA.

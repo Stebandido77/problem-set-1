@@ -1,0 +1,24 @@
+---
+title: "Seccion 2: Brecha de Ingreso Laboral por Genero"
+subtitle: "Problem Set 1 — MECA 4107 — Equipo XX"
+author: "Integrantes"
+format:
+  beamer:
+    theme: metropolis
+    slide-level: 2
+lang: es
+---
+
+## Result Overview
+
+<!-- OBLIGATORIA: el hallazgo principal de la seccion, antes de la metodologia. -->
+
+## Pregunta y motivacion
+
+## Evidencia descriptiva
+
+## Especificaciones
+
+## Resultados
+
+## Conclusion

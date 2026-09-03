@@ -1,0 +1,43 @@
+# --- Claude Code / asistentes -----------------------------------------------
+.claude/
+.claude/**
+*.claude.local.md
+
+# --- R ----------------------------------------------------------------------
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+.Renviron
+*.Rproj.user
+renv/library/
+renv/staging/
+renv/local/
+renv/python/
+renv/sandbox/
+
+# --- Datos crudos (se reproducen con 01_scraping.R) --------------------------
+stores/raw/*
+!stores/raw/.gitkeep
+*.csv.gz
+*.rds.bak
+
+# --- Quarto / LaTeX ----------------------------------------------------------
+/.quarto/
+*_files/
+*.aux
+*.log
+*.out
+*.nav
+*.snm
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# --- Sistema operativo -------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+.ipynb_checkpoints/
