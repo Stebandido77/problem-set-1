@@ -6,9 +6,20 @@ que es exactamente el 10,75% de observaciones que excluimos, y eso se describe
 distinto en las slides. Las demas preguntas sobre `pulso` (poblacion, tipo de
 normalizacion, costo de la dependencia cruzada) quedan fuera.
 
-Todas las cifras salen de correr `scripts/01_scraping.R` y consultas sobre
-`stores/raw/chunk_*.rds`. Universo de referencia: ocupados de 18 anos o mas,
-N = 16.542.
+**Muestra de referencia.** Salvo que se diga lo contrario, todas las cifras se
+calculan sobre la **muestra de analisis final, N = 14.751**, la misma que
+produce `build_analysis_sample()` y que se guarda en
+`stores/processed/analysis_sample.rds`. Es el unico N del repositorio.
+
+> Una version previa de esta nota comparaba definiciones sobre las 14.764 filas
+> que quedan justo despues del filtro de ingreso, es decir **antes** de los dos
+> ultimos filtros del waterfall. Las 13 filas de diferencia son 12 excluidas por
+> `totalHoursWorked > 112` y 1 por `maxEducLevel` faltante. Las cifras de abajo
+> ya estan recalculadas sobre 14.751 y ninguna conclusion cambia.
+
+El grupo excluido (1.778 filas) se mide, por construccion, en el paso del
+waterfall donde se aplica el filtro de ingreso, sobre los 16.542 ocupados de
+18 anos o mas.
 
 ---
 
@@ -30,12 +41,12 @@ extremos)"*. Es decir: la imputacion del DANE **esta disponible en el dataset**.
 
 ## 2. Pero `y_total_m` esta construida sobre la serie SIN imputar
 
-| Candidato | Coincidencia exacta con `y_total_m` (N = 14.764) |
+| Candidato | Coincidencia exacta con `y_total_m` (N = 14.751) |
 |---|---|
-| `y_ingLab_m + y_gananciaIndep_m` | **14.764 / 14.764 (100,0%)** |
-| `impa + isa` (sin imputar) | 14.249 (96,5%) |
-| `impa` (sin imputar) | 14.218 (96,3%) |
-| `ingtot` | 10.869 (73,6%) |
+| `y_ingLab_m + y_gananciaIndep_m` | **14.751 / 14.751 (100,0%)** |
+| `impa + isa` (sin imputar) | 14.237 (96,5%) |
+| `impa` (sin imputar) | 14.206 (96,3%) |
+| `ingtot` | 10.857 (73,6%) |
 | `impaes + isaes` (imputado) | 2 (0,0%) |
 | `impaes` (imputado) | **0 (0,0%)** |
 
@@ -43,9 +54,8 @@ extremos)"*. Es decir: la imputacion del DANE **esta disponible en el dataset**.
 construidos, y esos componentes siguen la serie **previa** a la imputacion. La
 coincidencia con la serie imputada es nula.
 
-Confirmacion por el otro lado: en la muestra que conservamos, solo **20
-observaciones (0,14%)** tienen un valor en `impaes`. **Nuestra muestra de
-analisis esta practicamente libre de imputacion.**
+Confirmacion por el otro lado: en la muestra final solo **20 observaciones
+(0,14%)** tienen un valor en `impaes`.
 
 ## 3. Que es entonces el 10,75% que excluimos
 
@@ -60,7 +70,7 @@ De las 1.778 filas con `y_total_m` faltante:
 El cruce es limpio: de las 1.529 con `impa == 0`, el DANE imputo 1.451 y dejo
 78 sin imputar; ninguno de los 248 trabajadores no remunerados recibio
 imputacion, como corresponde. Los valores imputados son ingresos plausibles:
-mediana 1.000.000 COP, media 1.780.515 COP.
+**mediana 1.000.000 COP**, media 1.780.515 COP.
 
 **Conclusion.** El grupo que excluimos **no** es el residuo que quedo despues
 de que el DANE imputo. Es no respuesta bruta (y ceros reportados) en la
@@ -68,32 +78,60 @@ actividad principal, para la cual **el DANE si publica un valor imputado que la
 variable construida del curso no incorpora**. En terminos de la MPMD, esas
 personas si aparecerian en los agregados oficiales, con ingreso imputado.
 
-### Como se describe en las slides
+## 4. La limitacion que esto impone
 
-> Se excluye el 10,75% de los ocupados adultos sin ingreso laboral observado.
-> No es el residuo posterior a la imputacion del DANE: `y_total_m` se construye
-> sobre la serie previa a imputar, de modo que el grupo excluido es no
-> respuesta bruta, para la cual el DANE si publica un valor imputado
-> (`impaes`, disponible para el 81,6% de ellos) que la variable del curso no
-> usa. La contrapartida es que la muestra estimada esta libre de imputacion
-> (0,14% con `impaes`), lo cual es coherente con el ejercicio: una autoridad
-> tributaria observa lo reportado, no lo imputado.
+La justificacion de excluirlas es real: una autoridad tributaria observa lo
+**reportado**, no lo imputado, de modo que estimar sobre la serie sin imputar
+es coherente con el ejercicio. Pero tiene un costo que **no se puede
+presentar como neutral**.
 
-## 4. Rastro de redondeo
+**Excluimos 1.451 personas que declararon ingreso laboral cero y a las que el
+DANE asigna una mediana de 1.000.000 COP.** Su composicion esta sesgada
+respecto a la muestra que si estimamos:
 
-El apilamiento en valores redondos es el tipico del autorreporte y no evidencia
-imputacion: 57,7% multiplos de 1.000 y 41,2% multiplos de 100.000.
+| Grupo | Muestra final | Los 1.451 excluidos |
+|---|---|---|
+| Independientes (`relab` 4 y 5) | 32,9% | **55,1%** |
+| Informales (`formal == 0`) | 39,8% | 46,4% |
+| Mujeres | 47,4% | 38,9% |
 
-Tres valores no redondos si se repiten de forma anomala:
+Los independientes estan sobrerrepresentados por un factor de 1,7 entre los
+excluidos; los informales, de forma mas moderada. Las mujeres **no** estan
+sobrerrepresentadas, lo cual limita el dano sobre la Seccion 2 pero no sobre
+las Secciones 1 y 3.
+
+> **Limitacion.** El modelo, por construccion, **no puede detectar a quien
+> declara cero**. Declarar cero es precisamente la forma extrema de
+> subreportar, y es la conducta que una autoridad tributaria mas querria
+> senalar. Al excluir esas 1.451 observaciones, el ejercicio queda condicionado
+> a la poblacion que reporta un ingreso positivo: estimamos quien subreporta
+> *en el margen*, no quien se declara fuera del sistema. La distorsion es mayor
+> entre independientes, que es tambien donde la fiscalizacion es mas dificil.
+
+Una extension natural, fuera del alcance de este problem set, seria reestimar
+usando `impaes` para ese grupo y comparar cuanto se desplaza la cola baja de la
+distribucion.
+
+## 5. La serie no es autorreporte puro
+
+El matiz del punto anterior. El apilamiento general en valores redondos es el
+tipico del autorreporte y no evidencia imputacion: 57,7% multiplos de 1.000 y
+41,2% multiplos de 100.000. Pero tres valores **no redondos** se repiten de
+forma anomala:
 
 | Valor | Frecuencia | Lectura |
 |---|---|---|
-| 869.453 | 332 | Constante calculada. Ningun caso tiene `impaes`; 318/332 son obreros de empresa particular y 278/332 formales. Rastro de un valor asignado dentro de la variable construida, no de autorreporte. |
+| 869.453 | 332 | Constante calculada. Ningun caso tiene `impaes`; 318/332 son obreros de empresa particular y 278/332 formales. Rastro de un valor asignado dentro de la variable construida. |
 | 781.242 | 266 | El SMMLV exacto de 2018. Legitimo: asalariados al minimo. |
 | 930.929,4375 | 164 | **No es entero.** Solo puede ser un valor calculado. |
 
-Son pocos casos (762 en total, 5,2%) y no alteran las decisiones de limpieza,
-pero conviene no presentarlos como ingreso autorreportado puro.
+En conjunto **762 observaciones, el 5,17% de la muestra final**. No alteran
+ninguna decision de limpieza, pero matizan el argumento del punto 4: aunque
+`y_total_m` no usa la imputacion del DANE, **tampoco es autorreporte puro**;
+tiene un componente construido. Al defender la exclusion de los ceros con el
+argumento de "observamos lo reportado", conviene reconocer que la serie que si
+estimamos ya trae valores asignados en cerca de una de cada veinte
+observaciones.
 
 ---
 

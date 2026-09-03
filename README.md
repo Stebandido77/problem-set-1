@@ -53,7 +53,12 @@ Rscript scripts/99_run_all.R
 ```
 
 El pipeline descarga los datos, construye la muestra, corre las tres secciones y
-exporta tablas y figuras a `views/`. Tiempo aproximado: — min.
+exporta tablas y figuras a `views/`.
+
+**Tiempo aproximado: 2 min** desde un clone limpio con `stores/raw/` vacio
+(medido de punta a punta: 1 min 59 s, incluye la descarga de ~227 MB de HTML
+crudo). Una segunda corrida tarda **20 s**: el scraper reutiliza el cache en
+disco y no emite ninguna peticion.
 
 ## Datos
 
