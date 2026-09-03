@@ -38,6 +38,49 @@ oficio_min_n <- 30    # min. training count for an occupation to survive
 non_predictors <- c("chunk_id", "mes", "fex_c", "fweight",
                     "directorio", "secuencia_p", "orden")
 
+# Fingerprint of the cleaning rules. -----------------------------------------
+# Digests the deparsed body of build_analysis_sample(), which is where every
+# filter and derived variable lives. Any edit to a rule changes the hash, so a
+# stored sample built under the old rules can be detected on load.
+cleaning_rules_hash <- function() {
+  digest::digest(deparse(body(build_analysis_sample)), algo = "sha256")
+}
+
+print_sample_meta <- function(meta) {
+  message("--- analysis sample metadata ---")
+  message("  N observations : ", meta$n)
+  message("  generated at   : ", format(meta$generated_at, "%Y-%m-%d %H:%M:%S"))
+  message("  cleaning rules : ", substr(meta$rules_hash, 1, 16), "...")
+  message("  income_floor   : ",
+          if (is.null(meta$income_floor)) "NULL (base sample)"
+          else meta$income_floor)
+  message("  oficio_min_n   : ", meta$oficio_min_n,
+          " | hours_max: ", meta$hours_max)
+  invisible(meta)
+}
+
+# Read the stored sample, print its metadata and warn when the rules that
+# produced it no longer match the current 02_cleaning.R.
+load_analysis_sample <- function(
+    path = file.path(processed_dir, "analysis_sample.rds")) {
+  if (!file.exists(path)) {
+    stop("No stored analysis sample. Run scripts/02_cleaning.R first.")
+  }
+  out  <- readRDS(path)
+  meta <- attr(out, "meta")
+  print_sample_meta(meta)
+
+  if (!identical(meta$rules_hash, cleaning_rules_hash())) {
+    warning(
+      "analysis_sample.rds was built with DIFFERENT cleaning rules than the ",
+      "current scripts/02_cleaning.R. Re-run 02_cleaning.R and commit the ",
+      "regenerated .rds together with the script.",
+      call. = FALSE, immediate. = TRUE
+    )
+  }
+  out
+}
+
 read_raw_chunks <- function() {
   paths <- file.path(raw_dir, sprintf("chunk_%02d.rds", seq_len(n_chunks)))
   if (any(!file.exists(paths))) {
@@ -148,6 +191,15 @@ build_analysis_sample <- function(income_floor = NULL,
   attr(out, "oficio_dropped") <- setdiff(sort(unique(s$oficio)), keep_oficio)
   attr(out, "oficio_kept")    <- sort(keep_oficio)
   attr(out, "income_floor")   <- income_floor
+  attr(out, "meta") <- list(
+    n            = nrow(out),
+    generated_at = Sys.time(),
+    rules_hash   = cleaning_rules_hash(),
+    income_floor = income_floor,
+    oficio_min_n = oficio_min_n,
+    hours_max    = hours_max,
+    r_version    = paste(R.version$major, R.version$minor, sep = ".")
+  )
   out
 }
 
@@ -213,15 +265,34 @@ write_waterfall_tex <- function(waterfall, path) {
 dir.create(processed_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(tables_dir, recursive = TRUE, showWarnings = FALSE)
 
-analysis_sample <- build_analysis_sample(
-  income_floor = NULL,
-  oficio_min_n = oficio_min_n,
-  hours_max    = hours_max
-)
+sample_path <- file.path(processed_dir, "analysis_sample.rds")
 
-saveRDS(analysis_sample, file.path(processed_dir, "analysis_sample.rds"))
-write_waterfall_tex(attr(analysis_sample, "waterfall"),
-                    file.path(tables_dir, "sample_construction.tex"))
+# Reuse the stored sample when the cleaning rules are unchanged; rebuild (and
+# say so) the moment any rule in build_analysis_sample() is edited.
+analysis_sample <- NULL
+if (file.exists(sample_path)) {
+  cached <- readRDS(sample_path)
+  if (identical(attr(cached, "meta")$rules_hash, cleaning_rules_hash())) {
+    message("cleaning rules unchanged: reusing the stored analysis sample.")
+    print_sample_meta(attr(cached, "meta"))
+    analysis_sample <- cached
+  } else {
+    message("cleaning rules CHANGED since the stored sample: rebuilding.")
+  }
+  rm(cached)
+}
+
+if (is.null(analysis_sample)) {
+  analysis_sample <- build_analysis_sample(
+    income_floor = NULL,
+    oficio_min_n = oficio_min_n,
+    hours_max    = hours_max
+  )
+  saveRDS(analysis_sample, sample_path)
+  write_waterfall_tex(attr(analysis_sample, "waterfall"),
+                      file.path(tables_dir, "sample_construction.tex"))
+  print_sample_meta(attr(analysis_sample, "meta"))
+}
 
 message("\n--- sample construction waterfall ---")
 print(as.data.frame(attr(analysis_sample, "waterfall")))

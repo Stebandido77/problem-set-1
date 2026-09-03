@@ -65,12 +65,52 @@ Distribuidos en 10 chunks. Variable de resultado: `y_total_m`.
 
 ## Decisiones de limpieza
 
-| Decision | Criterio | Justificacion |
-|---|---|---|
-| Ocupados | `ocu == 1` | Enunciado |
-| Edad | `age >= 18` | Enunciado |
-| Ingreso cero / faltante | — | — |
-| Outliers | — | — |
+Todas viven en `build_analysis_sample()` dentro de `scripts/02_cleaning.R`, que
+es la unica fuente de verdad para las tres secciones. El waterfall completo se
+exporta a `views/tables/sample_construction.tex`.
+
+| Decision | Criterio | Costo | Justificacion |
+|---|---|---|---|
+| Ocupados | `ocu == 1` | 15.495 (48,16%) | Enunciado |
+| Edad | `age >= 18` | 140 (0,84%) | Enunciado |
+| Ingreso faltante | excluir, nunca imputar | 1.778 (10,75%) | `y_total_m` no registra ceros exactos, solo `NA`. 248 son `relab` 6/7 (trabajo no remunerado), faltantes por construccion. Imputar exigiria un modelo de ingreso, que es el objeto de estimacion. |
+| Cola alta | **no se toca** | 0 | El ejercicio es la deteccion de subreporte por una autoridad tributaria: la cola alta es la poblacion de interes. Sin top-coding, winsorizacion ni recorte por percentil. |
+| Piso de ingreso | no se aplica en la muestra base | 0 | El argumento `income_floor` permite reestimar las especificaciones como chequeo de robustez (con `income_floor = 500` la muestra baja a 14.680). |
+| Horas implausibles | `totalHoursWorked <= 112` | 12 (0,08%) | 16 h/dia x 7 dias. El ingreso reportado es plausible; el error esta en las horas, que son control en la Seccion 1 y predictor en la Seccion 3. |
+| Educacion faltante | excluir | 1 (0,01%) | Control central. |
+| Factor de expansion | **no se aplica** | 0 | La Seccion 3 se evalua por RMSE no ponderado. La inferencia ponderada valida exige estratos y UPM, que este sample no publica. `fex_c` se conserva como columna para el chequeo ponderado de la Seccion 2. |
+| Niveles raros de `oficio` | colapsar en `"otros"` si tienen < 30 obs **en chunks 1-7** | 29 niveles, 2,8% | El umbral se calcula solo en entrenamiento y se aplica a validacion, de modo que el fold de validacion nunca informa la codificacion. |
+| `relab == 8` | colapsar en `relab == 9` ("otro") | 1 obs recodificada | Un unico caso en entrenamiento: se ajustaria perfectamente y desapareceria bajo LOOCV. |
+
+**Muestra final: 14.751 observaciones** (10.255 entrenamiento, 4.496 validacion).
+
+### Regla del equipo: el `.rds` viaja con el script
+
+`stores/processed/analysis_sample.rds` **si** se versiona. Lleva un atributo
+`meta` con el `N` final, la fecha de generacion y un hash SHA-256 de las reglas
+de limpieza (digest del cuerpo de `build_analysis_sample()`).
+
+> **Cualquier cambio a `scripts/02_cleaning.R` se commitea junto con el `.rds`
+> regenerado, nunca por separado.**
+
+Al cargar la muestra, `02_cleaning.R` imprime esa metadata y **advierte** si el
+hash almacenado no coincide con el script actual:
+
+```
+--- analysis sample metadata ---
+  N observations : 14751
+  generated at   : 2026-09-03 13:34:05
+  cleaning rules : 389ab2e03f19a76f...
+  income_floor   : NULL (base sample)
+  oficio_min_n   : 30 | hours_max: 112
+```
+
+Si ves `analysis_sample.rds was built with DIFFERENT cleaning rules`, corre
+`Rscript scripts/02_cleaning.R` y commitea el `.rds` resultante en el mismo
+commit que el cambio al script.
+
+Se mantiene en `.rds` a proposito: `.gitignore` tiene una regla `*.csv.gz` que
+dejaria un export comprimido fuera del repositorio sin avisar.
 
 ## Flujo de trabajo con Git
 

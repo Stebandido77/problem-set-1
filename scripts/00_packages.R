@@ -10,6 +10,7 @@ pacman::p_load(
   httr2,       # polite requests
   here,        # project-relative paths
   janitor,     # clean_names()
+  digest,      # hash of the cleaning rules stored with the sample
   boot,        # bootstrap
   fixest,      # fast regressions
   modelsummary, # publication-quality tables
