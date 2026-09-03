@@ -289,10 +289,13 @@ if (is.null(analysis_sample)) {
     hours_max    = hours_max
   )
   saveRDS(analysis_sample, sample_path)
-  write_waterfall_tex(attr(analysis_sample, "waterfall"),
-                      file.path(tables_dir, "sample_construction.tex"))
   print_sample_meta(attr(analysis_sample, "meta"))
 }
+
+# Written on every run, not only on a rebuild: the table is a pipeline output
+# and must reappear from a clean clone even when the stored sample is reused.
+write_waterfall_tex(attr(analysis_sample, "waterfall"),
+                    file.path(tables_dir, "sample_construction.tex"))
 
 message("\n--- sample construction waterfall ---")
 print(as.data.frame(attr(analysis_sample, "waterfall")))
