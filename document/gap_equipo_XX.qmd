@@ -21,4 +21,30 @@ lang: es
 
 ## Resultados
 
+## Limitacion: seleccion por no respuesta de ingreso
+
+La muestra excluye 1.778 ocupados adultos sin ingreso laboral observado
+(10,75%). Entre ellos **los hombres estan sobrerrepresentados**: 61,0% frente
+a 52,6% en la muestra estimada. La brecha se estima entonces sobre una muestra
+masculina depurada de quienes reportaron cero.
+
+`y_total_m` se construye sobre la serie previa a imputar, pero el DANE **si**
+publica un valor imputado (`impaes`) para 1.451 de esas personas. Eso permite
+acotar el sesgo:
+
+| Muestra | $N$ | Brecha cruda |
+|---|---|---|
+| Base (ingreso observado) | 14.751 | $-0{,}2375$ |
+| Ampliada con `impaes` | 16.201 | $-0{,}2426$ |
+
+**La brecha se mueve $-0{,}0051$ log points ($-0{,}4$ pp).** El sesgo va en
+direccion contraria a la intuitiva: la brecha observada **subestima** la
+desventaja femenina, y lo hace en cerca del 2% de su propio valor. Los hombres
+excluidos no son de bajo ingreso — el DANE les imputa una media por encima de
+la masculina observada.
+
+**Conclusion: la seleccion no compromete el resultado de esta seccion.**
+El chequeo descansa en que la imputacion del DANE sea correcta, de modo que es
+un analisis de sensibilidad y no una cota formal.
+
 ## Conclusion

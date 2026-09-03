@@ -96,9 +96,36 @@ respecto a la muestra que si estimamos:
 | Mujeres | 47,4% | 38,9% |
 
 Los independientes estan sobrerrepresentados por un factor de 1,7 entre los
-excluidos; los informales, de forma mas moderada. Las mujeres **no** estan
-sobrerrepresentadas, lo cual limita el dano sobre la Seccion 2 pero no sobre
-las Secciones 1 y 3.
+excluidos; los informales, de forma mas moderada.
+
+La fila de mujeres **no** es tranquilizadora, es direccional: 38,9% de mujeres
+entre los excluidos frente a 47,4% en la muestra significa que **removimos
+desproporcionadamente hombres** (61,0% de los excluidos, frente a 52,6% de la
+muestra). Eso es una amenaza especifica a la Seccion 2, porque la brecha se
+estima sobre una muestra masculina depurada de los que reportaron cero.
+
+**Cuantificacion.** Reestimando la brecha cruda sobre la muestra ampliada con
+las 1.451 observaciones al ingreso imputado por el DANE (`impaes`, N = 16.201):
+
+| Muestra | N | Brecha cruda |
+|---|---|---|
+| Base (solo ingreso observado) | 14.751 | **-0,2375** log points (-21,1%) |
+| Ampliada con `impaes` | 16.201 | **-0,2426** log points (-21,5%) |
+
+**La brecha se mueve -0,0051 log points (-0,4 pp): se vuelve levemente MAS
+negativa.** El signo es el contrario al que sugiere la intuicion de "salieron
+los hombres de peor desempeno", y la magnitud es pequena: la brecha observada
+**subestima** la desventaja femenina en cerca de un 2% de su propio valor.
+
+La intuicion falla porque los hombres excluidos no son de bajo ingreso: el
+DANE les imputa una media de log 13,9935, **por encima** de la media masculina
+observada (13,9808), mientras que a las mujeres excluidas les imputa 13,6929,
+**por debajo** de la femenina observada (13,7433). Ambos efectos empujan en la
+misma direccion y por eso la brecha se ensancha en lugar de encogerse.
+
+Esto descansa en que la imputacion del DANE sea correcta; es un chequeo de
+sensibilidad, no una cota. Pero como ejercicio de robustez es tranquilizador y
+va en el deck de la Seccion 2, no enterrado aqui.
 
 > **Limitacion.** El modelo, por construccion, **no puede detectar a quien
 > declara cero**. Declarar cero es precisamente la forma extrema de
