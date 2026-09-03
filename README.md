@@ -61,6 +61,11 @@ Microdata de Bogota del reporte *Medicion de Pobreza Monetaria y Desigualdad* (2
 basada en la GEIH: <https://ignaciomsarmiento.github.io/GEIH2018_sample/>.
 Distribuidos en 10 chunks. Variable de resultado: `y_total_m`.
 
+> **Procedencia.** El sitio del curso enlaza al catalogo DANE 547, *Gran Encuesta
+> Integrada de Hogares - GEIH - 2018* (<https://microdatos.dane.gov.co/index.php/catalog/547>);
+> la MPMD es el reporte construido a partir de esa encuesta, de modo que ambas
+> descripciones apuntan a la misma fuente.
+
 **Particion (Seccion 3):** chunks 1–7 = entrenamiento · chunks 8–10 = validacion.
 
 ## Decisiones de limpieza
