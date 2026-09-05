@@ -6,7 +6,8 @@
 #
 # Discretionary decisions, with the evidence behind each one:
 #   * Missing labour income is EXCLUDED, never imputed. y_total_m has no exact
-#     zeros, only NA. 248 of the dropped rows are relab 6/7 (unpaid family and
+#     zeros, only NA. 248 of the dropped rows are relab 6/7 (unpaid family
+#     and
 #     unpaid non-household workers), missing by construction. The remaining
 #     ~1,530 are item non-response, concentrated among employers (24.4%) and
 #     own-account workers (14.0%) versus salaried employees (6.3%). Imputing
@@ -15,7 +16,7 @@
 #     percentile trim. The problem set frames a tax authority detecting income
 #     under-reporting, so the high tail is the population of interest and
 #     deleting it would destroy the question being asked.
-#   * No income floor in the base sample. `income_floor` exists so the main
+#   * No income floor in the base sample. `piso_ingreso` exists so the main
 #     specifications can be re-run as a robustness check (see the argument).
 #   * Survey weights are NOT applied. fex_c is kept as a column so Section 2
 #     can report a weighted gender gap as robustness.
@@ -23,188 +24,192 @@
 
 source(here::here("scripts", "00_packages.R"))
 
-raw_dir       <- here::here("stores", "raw")
-processed_dir <- here::here("stores", "processed")
-tables_dir    <- here::here("views", "tables")
+dir_crudos     <- here::here("stores", "raw")
+dir_procesados <- here::here("stores", "processed")
+dir_tablas     <- here::here("views", "tables")
 
-n_chunks     <- 10
-train_chunks <- 1:7
-hours_max    <- 112   # 16 h/day x 7 days: physiological ceiling
-oficio_min_n <- 30    # min. training count for an occupation to survive
+n_chunks             <- 10
+chunks_entrenamiento <- 1:7
+horas_max            <- 112  # 16 h/day x 7 days: physiological ceiling
+oficio_n_min         <- 30   # min. training count for an occupation
 
 # Variables that must NEVER enter a model as predictors. `mes` and `chunk_id`
 # encode the calendar, and the chunks are ordered by month, so either one
 # would leak the train/validation split. fex_c/fweight are design weights.
-non_predictors <- c("chunk_id", "mes", "fex_c", "fweight",
+no_predictores <- c("chunk_id", "mes", "fex_c", "fweight",
                     "directorio", "secuencia_p", "orden")
 
 # Fingerprint of the cleaning rules. -----------------------------------------
-# Digests the deparsed body of build_analysis_sample(), which is where every
+# Digests the deparsed body of construir_muestra_analisis(), where every
 # filter and derived variable lives. Any edit to a rule changes the hash, so a
 # stored sample built under the old rules can be detected on load.
-cleaning_rules_hash <- function() {
-  digest::digest(deparse(body(build_analysis_sample)), algo = "sha256")
+hash_reglas_limpieza <- function() {
+  digest::digest(deparse(body(construir_muestra_analisis)), algo = "sha256")
 }
 
-print_sample_meta <- function(meta) {
+imprimir_meta_muestra <- function(meta) {
   message("--- analysis sample metadata ---")
   message("  N observations : ", meta$n)
-  message("  generated at   : ", format(meta$generated_at, "%Y-%m-%d %H:%M:%S"))
-  message("  cleaning rules : ", substr(meta$rules_hash, 1, 16), "...")
-  message("  income_floor   : ",
-          if (is.null(meta$income_floor)) "NULL (base sample)"
-          else meta$income_floor)
-  message("  oficio_min_n   : ", meta$oficio_min_n,
-          " | hours_max: ", meta$hours_max)
+  message("  generated at   : ", format(meta$generado_en, "%Y-%m-%d %H:%M:%S"))
+  message("  cleaning rules : ", substr(meta$hash_reglas, 1, 16), "...")
+  message("  piso_ingreso   : ",
+          if (is.null(meta$piso_ingreso)) "NULL (base sample)"
+          else meta$piso_ingreso)
+  message("  oficio_n_min   : ", meta$oficio_n_min,
+          " | horas_max: ", meta$horas_max)
   invisible(meta)
 }
 
 # Read the stored sample, print its metadata and warn when the rules that
 # produced it no longer match the current 02_cleaning.R.
-load_analysis_sample <- function(
-    path = file.path(processed_dir, "analysis_sample.rds")) {
-  if (!file.exists(path)) {
+cargar_muestra_analisis <- function(
+    ruta = file.path(dir_procesados, "muestra_analisis.rds")) {
+  if (!file.exists(ruta)) {
     stop("No stored analysis sample. Run scripts/02_cleaning.R first.")
   }
-  out  <- readRDS(path)
-  meta <- attr(out, "meta")
-  print_sample_meta(meta)
+  salida  <- readRDS(ruta)
+  meta <- attr(salida, "meta")
+  imprimir_meta_muestra(meta)
 
-  if (!identical(meta$rules_hash, cleaning_rules_hash())) {
+  if (!identical(meta$hash_reglas, hash_reglas_limpieza())) {
     warning(
-      "analysis_sample.rds was built with DIFFERENT cleaning rules than the ",
+      "muestra_analisis.rds was built with DIFFERENT cleaning rules than the ",
       "current scripts/02_cleaning.R. Re-run 02_cleaning.R and commit the ",
       "regenerated .rds together with the script.",
       call. = FALSE, immediate. = TRUE
     )
   }
-  out
+  salida
 }
 
-read_raw_chunks <- function() {
-  paths <- file.path(raw_dir, sprintf("chunk_%02d.rds", seq_len(n_chunks)))
-  if (any(!file.exists(paths))) {
+leer_chunks_crudos <- function() {
+  rutas <- file.path(dir_crudos,
+                     sprintf("chunk_%02d.rds", seq_len(n_chunks)))
+  if (any(!file.exists(rutas))) {
     stop("Missing raw chunks. Run scripts/01_scraping.R first.")
   }
-  dplyr::bind_rows(lapply(paths, readRDS))
+  dplyr::bind_rows(lapply(rutas, readRDS))
 }
 
 # Build the analysis sample. -------------------------------------------------
 #
-# @param income_floor NULL (default, the base sample) or a numeric hourly wage
-#   in COP. When numeric, rows whose y_total_m_ha falls below it are dropped.
+# @param piso_ingreso NULL (default, the base sample) or a numeric hourly wage
+#   in COP. When numeric, rows whose y_total_m_ha falls below it are
+#   dropped.
 #   This is a ROBUSTNESS switch, not part of the base sample: it lets the main
 #   specifications be re-estimated with and without implausibly low wages.
-# @param oficio_min_n Minimum number of TRAINING observations for an `oficio`
+# @param oficio_n_min Minimum number of TRAINING observations for an `oficio`
 #   level to survive; rarer levels collapse into "otros". The threshold is
 #   computed on chunks 1-7 only and then applied to 8-10, so the validation
 #   fold never informs the encoding.
-# @return A tibble, with the construction waterfall in attr(., "waterfall").
-build_analysis_sample <- function(income_floor = NULL,
-                                  oficio_min_n = 30,
-                                  hours_max = 112) {
-  raw <- read_raw_chunks()
+# @return A tibble, with the construction waterfall in attr(., "cascada").
+construir_muestra_analisis <- function(piso_ingreso = NULL,
+                                       oficio_n_min = 30,
+                                       horas_max = 112) {
+  crudo <- leer_chunks_crudos()
 
-  n_raw <- nrow(raw)
-  steps <- list(tibble::tibble(step = "Datos crudos (10 chunks)",
-                               n = n_raw, dropped = NA_integer_))
-  track <- function(label, data, prev_n) {
-    steps[[length(steps) + 1]] <<- tibble::tibble(
-      step = label, n = nrow(data), dropped = prev_n - nrow(data)
+  n_crudo <- nrow(crudo)
+  pasos <- list(tibble::tibble(paso = "Datos crudos (10 chunks)",
+                               n = n_crudo, excluidas = NA_integer_))
+  registrar <- function(etiqueta, datos, n_previo) {
+    pasos[[length(pasos) + 1]] <<- tibble::tibble(
+      paso = etiqueta, n = nrow(datos), excluidas = n_previo - nrow(datos)
     )
-    nrow(data)
+    nrow(datos)
   }
 
-  s <- raw |> dplyr::filter(ocu == 1)
-  n <- track("Ocupados (ocu = 1)", s, n_raw)
+  m <- crudo |> dplyr::filter(ocu == 1)
+  n <- registrar("Ocupados (ocu = 1)", m, n_crudo)
 
-  s <- s |> dplyr::filter(age >= 18)
-  n <- track("Edad 18 o mas", s, n)
+  m <- m |> dplyr::filter(age >= 18)
+  n <- registrar("Edad 18 o mas", m, n)
 
-  s <- s |> dplyr::filter(!is.na(y_total_m))
-  n <- track("Ingreso laboral observado", s, n)
+  m <- m |> dplyr::filter(!is.na(y_total_m))
+  n <- registrar("Ingreso laboral observado", m, n)
 
-  s <- s |> dplyr::filter(totalHoursWorked <= hours_max)
-  n <- track(sprintf("Horas semanales hasta %d", hours_max), s, n)
+  m <- m |> dplyr::filter(totalHoursWorked <= horas_max)
+  n <- registrar(sprintf("Horas semanales hasta %d", horas_max), m, n)
 
-  s <- s |> dplyr::filter(!is.na(maxEducLevel))
-  n <- track("Nivel educativo observado", s, n)
+  m <- m |> dplyr::filter(!is.na(maxEducLevel))
+  n <- registrar("Nivel educativo observado", m, n)
 
-  if (!is.null(income_floor)) {
-    s <- s |> dplyr::filter(y_total_m_ha >= income_floor)
-    n <- track(sprintf("Salario horario desde %s COP",
-                       formatC(income_floor, format = "d", big.mark = ".",
-                               decimal.mark = ",")), s, n)
+  if (!is.null(piso_ingreso)) {
+    m <- m |> dplyr::filter(y_total_m_ha >= piso_ingreso)
+    n <- registrar(sprintf("Salario horario desde %s COP",
+                           formatC(piso_ingreso, format = "d",
+                                   big.mark = ".", decimal.mark = ",")),
+                   m, n)
   }
 
   # Occupation grouping: threshold learned on the training chunks only. -------
-  train_counts <- s |>
-    dplyr::filter(chunk_id %in% train_chunks) |>
+  conteos_oficio <- m |>
+    dplyr::filter(chunk_id %in% chunks_entrenamiento) |>
     dplyr::count(oficio)
-  keep_oficio <- train_counts$oficio[train_counts$n >= oficio_min_n]
-  oficio_levels <- c(as.character(sort(keep_oficio)), "otros")
+  oficio_frec <- conteos_oficio$oficio[conteos_oficio$n >= oficio_n_min]
+  niveles_oficio <- c(as.character(sort(oficio_frec)), "otros")
 
-  out <- s |>
+  salida <- m |>
     dplyr::mutate(
-      log_income = log(y_total_m),
-      female     = as.integer(sex == 0),  # dictionary: sex = 1 male, 0 female
-      age_sq     = age^2,
+      ingreso_log = log(y_total_m),
+      mujer       = as.integer(sex == 0),  # dictionary: sex 1 = male
+      edad_2      = age^2,
       # relab 8 (jornalero) has a single training observation: it would be
       # fitted perfectly and would vanish under LOOCV. Fold it into "otro".
-      relab_grp  = factor(dplyr::if_else(relab %in% c(8, 9), 9L,
-                                         as.integer(relab))),
-      oficio_grp = factor(
-        dplyr::if_else(oficio %in% keep_oficio, as.character(oficio), "otros"),
-        levels = oficio_levels
+      relab_grupo  = factor(dplyr::if_else(relab %in% c(8, 9), 9L,
+                                           as.integer(relab))),
+      oficio_grupo = factor(
+        dplyr::if_else(oficio %in% oficio_frec, as.character(oficio), "otros"),
+        levels = niveles_oficio
       ),
-      educ          = factor(maxEducLevel),
-      size_firm     = factor(sizeFirm),
-      estrato       = factor(estrato1),
-      cot_pension   = factor(cotPension),
-      formal        = as.integer(formal),
-      college       = as.integer(college),
-      cuenta_propia = as.integer(cuentaPropia),
-      micro_empresa = as.integer(microEmpresa),
-      tenure_months = p6426,
-      hours         = totalHoursWorked,
-      hours_usual   = hoursWorkUsual,
-      split         = dplyr::if_else(chunk_id %in% train_chunks,
-                                     "train", "validation")
+      educ             = factor(maxEducLevel),
+      tamano_empresa   = factor(sizeFirm),
+      estrato          = factor(estrato1),
+      cot_pension      = factor(cotPension),
+      formal           = as.integer(formal),
+      college          = as.integer(college),
+      cuenta_propia    = as.integer(cuentaPropia),
+      micro_empresa    = as.integer(microEmpresa),
+      antiguedad_meses = p6426,
+      horas            = totalHoursWorked,
+      horas_usuales    = hoursWorkUsual,
+      particion        = dplyr::if_else(chunk_id %in% chunks_entrenamiento,
+                                        "entrenamiento", "validacion")
     ) |>
     dplyr::select(
-      chunk_id, split, mes, directorio, secuencia_p, orden,
-      y_total_m, y_total_m_ha, log_income,
-      female, age, age_sq,
-      educ, college, relab_grp, oficio_grp, size_firm, estrato,
+      chunk_id, particion, mes, directorio, secuencia_p, orden,
+      y_total_m, y_total_m_ha, ingreso_log,
+      mujer, age, edad_2,
+      educ, college, relab_grupo, oficio_grupo, tamano_empresa, estrato,
       formal, cot_pension, cuenta_propia, micro_empresa,
-      hours, hours_usual, tenure_months,
+      horas, horas_usuales, antiguedad_meses,
       fex_c, fweight
     )
 
-  waterfall <- dplyr::bind_rows(steps) |>
+  cascada <- dplyr::bind_rows(pasos) |>
     dplyr::mutate(
-      pct_prev = round(100 * dropped / dplyr::lag(n), 2),
-      pct_raw  = round(100 * n / n_raw, 2)
+      pct_previo = round(100 * excluidas / dplyr::lag(n), 2),
+      pct_crudo  = round(100 * n / n_crudo, 2)
     )
 
-  attr(out, "waterfall")      <- waterfall
-  attr(out, "oficio_dropped") <- setdiff(sort(unique(s$oficio)), keep_oficio)
-  attr(out, "oficio_kept")    <- sort(keep_oficio)
-  attr(out, "income_floor")   <- income_floor
-  attr(out, "meta") <- list(
-    n            = nrow(out),
-    generated_at = Sys.time(),
-    rules_hash   = cleaning_rules_hash(),
-    income_floor = income_floor,
-    oficio_min_n = oficio_min_n,
-    hours_max    = hours_max,
-    r_version    = paste(R.version$major, R.version$minor, sep = ".")
+  attr(salida, "cascada")            <- cascada
+  attr(salida, "oficio_colapsados")  <- setdiff(sort(unique(m$oficio)),
+                                                oficio_frec)
+  attr(salida, "oficio_conservados") <- sort(oficio_frec)
+  attr(salida, "piso_ingreso")       <- piso_ingreso
+  attr(salida, "meta") <- list(
+    n            = nrow(salida),
+    generado_en  = Sys.time(),
+    hash_reglas  = hash_reglas_limpieza(),
+    piso_ingreso = piso_ingreso,
+    oficio_n_min = oficio_n_min,
+    horas_max    = horas_max,
+    version_r    = paste(R.version$major, R.version$minor, sep = ".")
   )
-  out
+  salida
 }
 
-# Render the waterfall as a standalone LaTeX table. ---------------------------
-write_waterfall_tex <- function(waterfall, path) {
+# Render the waterfall as a standalone LaTeX table. -------------------------
+escribir_cascada_tex <- function(cascada, ruta) {
   bs  <- "\\"
   # Spanish convention: "." groups thousands, "," is the decimal separator.
   # Setting both explicitly also silences formatC's ambiguity warning.
@@ -213,25 +218,25 @@ write_waterfall_tex <- function(waterfall, path) {
   }
   eol <- paste0(bs, bs)
 
-  body <- vapply(seq_len(nrow(waterfall)), function(i) {
-    r <- waterfall[i, ]
-    if (is.na(r$dropped)) {
-      sprintf("%s & %s & --- & --- & %.2f %s", r$step, fmt(r$n),
-              r$pct_raw, eol)
+  cuerpo <- vapply(seq_len(nrow(cascada)), function(i) {
+    r <- cascada[i, ]
+    if (is.na(r$excluidas)) {
+      sprintf("%s & %s & --- & --- & %.2f %s", r$paso, fmt(r$n),
+              r$pct_crudo, eol)
     } else {
-      sprintf("%s & %s & %s & %.2f & %.2f %s", r$step, fmt(r$n),
-              fmt(r$dropped), r$pct_prev, r$pct_raw, eol)
+      sprintf("%s & %s & %s & %.2f & %.2f %s", r$paso, fmt(r$n),
+              fmt(r$excluidas), r$pct_previo, r$pct_crudo, eol)
     }
   }, character(1))
 
-  notes <- paste(
+  notas <- paste(
     "Notas: GEIH 2018, Bogota. Los ingresos laborales no se recortan por",
     "arriba: no hay top-coding, winsorizacion ni recorte por percentil. El",
     "ejercicio del problem set es la deteccion de subreporte de ingresos por",
     "parte de una autoridad tributaria, de modo que la cola alta es la",
     "poblacion de interes y eliminarla sesgaria justamente el objeto de",
     "estudio. Tampoco se aplica un piso de ingreso en la muestra base; el",
-    "argumento income_floor permite reestimar las especificaciones",
+    "argumento piso_ingreso permite reestimar las especificaciones",
     "principales excluyendo salarios horarios implausibles como chequeo de",
     "robustez. La ausencia de ingreso se excluye y nunca se imputa:",
     "y_total_m no registra ceros exactos, solo valores faltantes. No se",
@@ -243,72 +248,72 @@ write_waterfall_tex <- function(waterfall, path) {
     paste0(bs, "begin{table}[htbp]"),
     paste0(bs, "centering"),
     paste0(bs, "caption{Construccion de la muestra de analisis}"),
-    paste0(bs, "label{tab:sample-construction}"),
+    paste0(bs, "label{tab:construccion-muestra}"),
     paste0(bs, "begin{tabular}{lrrrr}"),
     paste0(bs, "toprule"),
     paste0("Filtro & $N$ & Excluidas & \\% del paso previo & ",
            "\\% del crudo ", eol),
     paste0(bs, "midrule"),
-    body,
+    cuerpo,
     paste0(bs, "bottomrule"),
     paste0(bs, "end{tabular}"),
     paste0(bs, "begin{minipage}{0.95", bs, "textwidth}"),
     paste0(bs, "footnotesize"),
-    paste0(bs, "textit{", notes, "}"),
+    paste0(bs, "textit{", notas, "}"),
     paste0(bs, "end{minipage}"),
     paste0(bs, "end{table}")
   )
-  writeLines(tex, path)
+  writeLines(tex, ruta)
 }
 
 # Run -------------------------------------------------------------------------
-dir.create(processed_dir, recursive = TRUE, showWarnings = FALSE)
-dir.create(tables_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(dir_procesados, recursive = TRUE, showWarnings = FALSE)
+dir.create(dir_tablas, recursive = TRUE, showWarnings = FALSE)
 
-sample_path <- file.path(processed_dir, "analysis_sample.rds")
+ruta_muestra <- file.path(dir_procesados, "muestra_analisis.rds")
 
 # Reuse the stored sample when the cleaning rules are unchanged; rebuild (and
-# say so) the moment any rule in build_analysis_sample() is edited.
-analysis_sample <- NULL
-if (file.exists(sample_path)) {
-  cached <- readRDS(sample_path)
-  if (identical(attr(cached, "meta")$rules_hash, cleaning_rules_hash())) {
+# say so) the moment any rule in construir_muestra_analisis() is edited.
+muestra_analisis <- NULL
+if (file.exists(ruta_muestra)) {
+  en_cache <- readRDS(ruta_muestra)
+  if (identical(attr(en_cache, "meta")$hash_reglas, hash_reglas_limpieza())) {
     message("cleaning rules unchanged: reusing the stored analysis sample.")
-    print_sample_meta(attr(cached, "meta"))
-    analysis_sample <- cached
+    imprimir_meta_muestra(attr(en_cache, "meta"))
+    muestra_analisis <- en_cache
   } else {
     message("cleaning rules CHANGED since the stored sample: rebuilding.")
   }
-  rm(cached)
+  rm(en_cache)
 }
 
-if (is.null(analysis_sample)) {
-  analysis_sample <- build_analysis_sample(
-    income_floor = NULL,
-    oficio_min_n = oficio_min_n,
-    hours_max    = hours_max
+if (is.null(muestra_analisis)) {
+  muestra_analisis <- construir_muestra_analisis(
+    piso_ingreso = NULL,
+    oficio_n_min = oficio_n_min,
+    horas_max    = horas_max
   )
-  saveRDS(analysis_sample, sample_path)
-  print_sample_meta(attr(analysis_sample, "meta"))
+  saveRDS(muestra_analisis, ruta_muestra)
+  imprimir_meta_muestra(attr(muestra_analisis, "meta"))
 }
 
 # Written on every run, not only on a rebuild: the table is a pipeline output
 # and must reappear from a clean clone even when the stored sample is reused.
-write_waterfall_tex(attr(analysis_sample, "waterfall"),
-                    file.path(tables_dir, "sample_construction.tex"))
+escribir_cascada_tex(attr(muestra_analisis, "cascada"),
+                     file.path(dir_tablas, "construccion_muestra.tex"))
 
 message("\n--- sample construction waterfall ---")
-print(as.data.frame(attr(analysis_sample, "waterfall")))
+print(as.data.frame(attr(muestra_analisis, "cascada")))
 
 message("\n--- oficio grouping (threshold on chunks 1-7 only) ---")
-message("levels kept: ", length(attr(analysis_sample, "oficio_kept")),
+message("levels kept: ", length(attr(muestra_analisis, "oficio_conservados")),
         " | collapsed into 'otros': ",
-        length(attr(analysis_sample, "oficio_dropped")))
+        length(attr(muestra_analisis, "oficio_colapsados")))
 message("share of sample in 'otros': ",
-        round(100 * mean(analysis_sample$oficio_grp == "otros"), 2), "%")
+        round(100 * mean(muestra_analisis$oficio_grupo == "otros"), 2), "%")
 
 message("\n--- final N by chunk ---")
-print(analysis_sample |> dplyr::count(split, chunk_id) |> as.data.frame())
+print(muestra_analisis |> dplyr::count(particion, chunk_id) |> as.data.frame())
 
-message("analysis_sample.rds written: ", nrow(analysis_sample), " x ",
-        ncol(analysis_sample))
+message("muestra_analisis.rds written: ", nrow(muestra_analisis), " x ",
+        ncol(muestra_analisis))

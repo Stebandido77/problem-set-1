@@ -8,17 +8,17 @@ normalizacion, costo de la dependencia cruzada) quedan fuera.
 
 **Muestra de referencia.** Salvo que se diga lo contrario, todas las cifras se
 calculan sobre la **muestra de analisis final, N = 14.751**, la misma que
-produce `build_analysis_sample()` y que se guarda en
-`stores/processed/analysis_sample.rds`. Es el unico N del repositorio.
+produce `construir_muestra_analisis()` y que se guarda en
+`stores/processed/muestra_analisis.rds`. Es el unico N del repositorio.
 
 > Una version previa de esta nota comparaba definiciones sobre las 14.764 filas
 > que quedan justo despues del filtro de ingreso, es decir **antes** de los dos
-> ultimos filtros del waterfall. Las 13 filas de diferencia son 12 excluidas por
+> ultimos filtros de la cascada. Las 13 filas de diferencia son 12 excluidas por
 > `totalHoursWorked > 112` y 1 por `maxEducLevel` faltante. Las cifras de abajo
 > ya estan recalculadas sobre 14.751 y ninguna conclusion cambia.
 
-El grupo excluido (1.778 filas) se mide, por construccion, en el paso del
-waterfall donde se aplica el filtro de ingreso, sobre los 16.542 ocupados de
+El grupo excluido (1.778 filas) se mide, por construccion, en el paso de
+la cascada donde se aplica el filtro de ingreso, sobre los 16.542 ocupados de
 18 anos o mas.
 
 ---

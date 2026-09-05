@@ -6,4 +6,4 @@
 # ----------------------------------------------------------------------------
 
 source(here::here("scripts", "02_cleaning.R"))
-source(here::here("scripts", "functions", "peak_age.R"))
+source(here::here("scripts", "functions", "edad_pico.R"))
