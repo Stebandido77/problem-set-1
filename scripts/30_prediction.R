@@ -20,11 +20,13 @@
 #      dos filtra la particion y el RMSE de validacion dejaria de medir error
 #      fuera de muestra. Estan en `no_predictores` dentro de `02_cleaning.R`.
 #   b. Leer el RMSE de validacion como error fuera de muestra ordinario exige
-#      que no haya salto de nivel entre los dos folds. No lo hay: sobre una
-#      tendencia mensual, la dummy de diciembre no se distingue de cero
-#      (b = -0,018, p = 0,59), porque la prima de servicios ya entra en
-#      `y_total_m` mensualizada. La evidencia esta en
-#      `views/figures/deriva_temporal.png` y en la salida de `test_deriva`.
+#      que no haya salto de nivel entre los dos folds. No lo hay, y las dos
+#      especificaciones de `03_descriptives.R` coinciden: como dummy sola,
+#      diciembre da b = +0,0087 (p = 0,76); sobre una tendencia mensual,
+#      b = -0,018 (p = 0,59). Ninguna se distingue de cero, porque la prima
+#      de servicios ya entra en `y_total_m` mensualizada. La evidencia esta
+#      en `views/figures/deriva_temporal.png`, cuyo subtitulo cita la primera
+#      de las dos.
 #
 # El mismo razonamiento vale para la agrupacion de `oficio`: el umbral de 30
 # observaciones se calcula SOLO sobre los chunks 1-7 y despues se aplica a los

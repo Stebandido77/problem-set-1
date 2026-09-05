@@ -63,6 +63,24 @@ guardar_fig <- function(grafico, nombre, ancho = 7.6, alto = 4.6) {
 #' # asimetria(muestra_analisis$ingreso_log)  # -0,348 en logaritmos
 asimetria <- function(x) mean((x - mean(x))^3) / sd(x)^3
 
+#' Formatear un numero para un subtitulo, en convencion espanola
+#'
+#' Existe para que las cifras de las figuras se INTERPOLEN desde el objeto que
+#' las produjo en vez de escribirse a mano. Un numero tecleado en un subtitulo
+#' sobrevive a los cambios de muestra sin avisar; uno interpolado, no.
+#'
+#' @param x Escalar numerico.
+#' @param digitos Decimales a mostrar.
+#' @param signo Si `TRUE`, fuerza el signo explicito (`+` o `-`).
+#' @return Cadena con "," como separador decimal.
+#' @examples
+#' # num_es(0.008690, 4, signo = TRUE)  # "+0,0087"
+#' # num_es(0.757700, 2)                # "0,76"
+num_es <- function(x, digitos, signo = FALSE) {
+  formatC(x, format = "f", digits = digitos, decimal.mark = ",",
+          flag = if (signo) "+" else "")
+}
+
 # 1. Por que el outcome va en logaritmos --------------------------------------
 # `y_total_m` esta fuertemente sesgada a la derecha (asimetria 8,49): en
 # niveles, OLS quedaria dominado por la cola alta y los residuos serian
@@ -233,12 +251,25 @@ guardar_fig(p_horas, "ingreso_por_horas.png")
 #   b. Leer el RMSE de validacion como error fuera de muestra ordinario exige
 #      que no haya salto de nivel entre folds. No lo hay: diciembre no se
 #      dispara, porque la prima de servicios ya entra en `y_total_m`
-#      mensualizada, y la dummy de diciembre sobre una tendencia mensual no se
-#      distingue de cero (ver la salida de `test_deriva` al final).
+#      mensualizada. Se prueba de dos formas, `test_dic` y `test_deriva`, y
+#      ninguna encuentra el salto (ambas se imprimen al final).
 #
 # Esta figura es la que habilita a la Seccion 3 a interpretar su RMSE de
 # validacion: sin ella, un salto de nivel entre folds seria una explicacion
 # alternativa de cualquier deterioro fuera de muestra.
+# Dos especificaciones distintas del mismo chequeo, y conviene no
+# confundirlas al citarlas:
+#   * `test_dic`    : diciembre como dummy sola. Es la que cita el subtitulo
+#                     de la figura, porque la figura muestra medias por mes
+#                     sin ninguna tendencia de fondo.
+#   * `test_deriva` : diciembre y noviembre sobre una tendencia mensual. Es la
+#                     que se imprime al final y la que cita `30_prediction.R`.
+# Ninguna de las dos encuentra un salto en diciembre.
+test_dic <- lm(ingreso_log ~ I(mes == 12), data = muestra_analisis)
+coef_dic <- summary(test_dic)$coefficients["I(mes == 12)TRUE", ]
+b_dic    <- coef_dic[["Estimate"]]
+p_dic    <- coef_dic[["Pr(>|t|)"]]
+
 ingreso_mensual <- muestra_analisis |>
   group_by(mes) |>
   summarise(n = n(), media_log = mean(ingreso_log),
@@ -265,11 +296,16 @@ p_deriva <- ggplot(ingreso_mensual, aes(mes, media_log)) +
     x = "Mes de la encuesta (2018)",
     y = "Media de log(ingreso laboral mensual)",
     title = "El ingreso laboral no presenta deriva temporal dentro de 2018",
-    subtitle = paste(
-      "Los chunks estan ordenados por mes: el corte 1-7 / 8-10 es temporal",
-      "(el mes 9 se reparte entre ambos\nfolds). Diciembre no salta",
-      "(+1,25%, p = 0,66): la prima de servicios ya viene mensualizada",
-      "en y_total_m."
+    subtitle = sprintf(
+      paste(
+        "Los chunks estan ordenados por mes: el corte 1-7 / 8-10 es",
+        "temporal.\nEl mes 9 se reparte entre ambos folds. Diciembre no",
+        "salta: b = %s log points (%s%%), p = %s.\nLa prima de servicios ya",
+        "viene mensualizada en y_total_m."
+      ),
+      num_es(b_dic, 4, signo = TRUE),
+      num_es(100 * (exp(b_dic) - 1), 2, signo = TRUE),
+      num_es(p_dic, 2)
     )
   ) +
   tema_ps
@@ -298,5 +334,7 @@ message("\n--- 5. monthly mean/median of log(y_total_m) ---")
 print(as.data.frame(
   ingreso_mensual[, c("mes", "n", "media_log", "mediana_log")]
 ))
+message("\n--- December dummy alone (cited in the figure subtitle) ---")
+print(summary(test_dic)$coefficients)
 message("\n--- December dummy on top of a month trend ---")
 print(summary(test_deriva)$coefficients)
