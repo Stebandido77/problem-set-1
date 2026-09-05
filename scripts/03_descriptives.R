@@ -1,15 +1,21 @@
 # 03_descriptives.R ----------------------------------------------------------
-# Descriptive evidence that MOTIVATES the modeling choices (not a data
-# dictionary). Every figure here answers "why is the model specified this
-# way?", never "what does this variable contain?".
+# Evidencia descriptiva que MOTIVA las decisiones de modelacion. No es un
+# diccionario de datos: cada figura responde "por que el modelo esta
+# especificado asi", nunca "que contiene esta variable". Lo segundo va en el
+# glosario del README.
 #
-#   1. distribution of y_total_m -> why the outcome is logged
-#   2. income by age            -> why age enters quadratically
-#   3. income by gender         -> the raw gap Section 2 has to explain
-#   4. income by hours worked   -> why Section 1 conditions on hours
-#   5. income by survey month   -> why `mes`/`chunk_id` never become predictors
+#   1. distribucion de y_total_m -> por que el outcome va en logaritmos
+#   2. ingreso por edad          -> por que la edad entra al cuadrado
+#   3. ingreso por sexo          -> la brecha cruda que explica la Seccion 2
+#   4. ingreso por horas         -> por que la Seccion 1 controla por horas
+#   5. ingreso por mes           -> por que `mes`/`chunk_id` no son predictores
 #
-# Exports figures to views/figures/.
+# El criterio para que una figura viva aqui es que alguna decision del
+# pipeline dependa de ella. Una descriptiva que no cambia ninguna decision no
+# entra al codigo: va a las slides como contexto.
+#
+# Exporta a views/figures/ en PNG a 300 dpi. Nunca se pegan capturas de la
+# consola de R en las slides.
 # ----------------------------------------------------------------------------
 
 source(here::here("scripts", "02_cleaning.R"))
@@ -17,6 +23,8 @@ source(here::here("scripts", "02_cleaning.R"))
 dir_figuras <- here::here("views", "figures")
 dir.create(dir_figuras, recursive = TRUE, showWarnings = FALSE)
 
+# Un unico tema para las cinco figuras: si cada una trae su propio estilo, el
+# deck se lee como cinco trabajos distintos.
 tema_ps <- theme_minimal(base_size = 11) +
   theme(
     plot.title       = element_text(face = "bold", size = 11.5),
@@ -24,18 +32,48 @@ tema_ps <- theme_minimal(base_size = 11) +
     panel.grid.minor = element_blank()
   )
 
+#' Guardar una figura en views/figures/ con tamano y resolucion uniformes
+#'
+#' @param grafico Objeto de ggplot2.
+#' @param nombre Nombre del archivo, con extension (por ejemplo
+#'   `"ingreso_por_edad.png"`). La ruta la pone la funcion.
+#' @param ancho,alto Pulgadas. Los defaults estan calibrados para una lamina
+#'   de beamer; solo se cambian cuando la figura lleva facetas.
+#' @return La ruta del archivo, de forma invisible (lo que devuelve `ggsave`).
+#' @examples
+#' # guardar_fig(p_edad, "ingreso_por_edad.png")
+#' # guardar_fig(p_log, "dist_ingreso_log.png", ancho = 8.4)
 guardar_fig <- function(grafico, nombre, ancho = 7.6, alto = 4.6) {
   ggsave(file.path(dir_figuras, nombre), grafico, width = ancho,
          height = alto, dpi = 300)
 }
 
+#' Coeficiente de asimetria muestral (tercer momento estandarizado)
+#'
+#' Se escribe a mano en lugar de sumar un paquete solo por esto. Usa el `sd()`
+#' de R (denominador n-1) mientras el momento va con denominador n, de modo
+#' que difiere levemente de la formula g1 de los libros de texto. No importa:
+#' el numero se usa para decidir si la distribucion esta gruesamente sesgada,
+#' no para hacer inferencia sobre la asimetria.
+#'
+#' @param x Vector numerico sin `NA`.
+#' @return Escalar. Positivo = cola derecha larga, 0 = simetrica.
+#' @examples
+#' # asimetria(muestra_analisis$y_total_m)    # 8,49 en niveles
+#' # asimetria(muestra_analisis$ingreso_log)  # -0,348 en logaritmos
 asimetria <- function(x) mean((x - mean(x))^3) / sd(x)^3
 
-# 1. Why the outcome is logged -------------------------------------------------
-# y_total_m is strongly right-skewed, so OLS in levels would be driven by the
-# top of the distribution and its residuals would be badly heteroskedastic.
-# The log is close to symmetric, which is what makes a linear model in
-# log-income the natural specification for all three sections.
+# 1. Por que el outcome va en logaritmos --------------------------------------
+# `y_total_m` esta fuertemente sesgada a la derecha (asimetria 8,49): en
+# niveles, OLS quedaria dominado por la cola alta y los residuos serian
+# gravemente heterocedasticos. En logaritmos la distribucion es casi simetrica
+# (-0,348), y eso es lo que vuelve natural un modelo lineal en log-ingreso
+# para las tres secciones.
+#
+# Tomar logaritmos tiene ademas dos consecuencias que conviene decir en las
+# slides: los coeficientes se leen como cambios porcentuales aproximados, y el
+# modelo predice la MEDIA del log, no el log de la media. Volver a pesos con
+# `exp(prediccion)` subestima el ingreso esperado.
 asimetria_nivel <- asimetria(muestra_analisis$y_total_m)
 asimetria_log   <- asimetria(muestra_analisis$ingreso_log)
 
@@ -66,10 +104,16 @@ p_log <- ggplot(panel_log, aes(valor)) +
   tema_ps
 guardar_fig(p_log, "dist_ingreso_log.png", ancho = 8.4)
 
-# 2. Why age enters quadratically ---------------------------------------------
-# Binned means show a concave profile: income rises with age, flattens, and
-# turns down. A linear term cannot represent that, so age enters with a square
-# and Section 1 can report a peak age.
+# 2. Por que la edad entra al cuadrado ----------------------------------------
+# Las medias por edad dibujan un perfil concavo: el ingreso sube, se aplana y
+# cae. Un termino lineal no puede representar ese descenso final, asi que la
+# edad entra con su cuadrado y la Seccion 1 puede reportar una edad pico.
+#
+# Se exigen al menos 20 observaciones por edad para dibujar un punto: en las
+# edades muy altas quedan poquisimas personas y sus medias saltan tanto que
+# sugieren un patron que no esta ahi. El ajuste, en cambio, se estima sobre la
+# muestra COMPLETA y no sobre las medias por edad: los puntos son evidencia
+# visual, no el insumo de la regresion.
 medias_por_edad <- muestra_analisis |>
   group_by(age) |>
   summarise(n = n(), media_log = mean(ingreso_log), .groups = "drop") |>
@@ -106,9 +150,15 @@ p_edad <- ggplot(medias_por_edad, aes(age, media_log)) +
   tema_ps
 guardar_fig(p_edad, "ingreso_por_edad.png")
 
-# 3. The raw gender gap Section 2 has to explain -------------------------------
-# The unconditional gap is the starting point of Section 2: the question there
-# is how much of it survives once we condition on observables.
+# 3. La brecha de genero cruda que la Seccion 2 tiene que explicar ------------
+# La brecha incondicional es el punto de partida de la Seccion 2: la pregunta
+# alla es cuanto de ella sobrevive al condicionar por observables.
+#
+# Se grafican las densidades completas y no solo las dos medias a proposito:
+# una diferencia de medias puede venir de un desplazamiento de toda la
+# distribucion o de una cola distinta, y esas dos historias piden modelos
+# distintos. Aqui se ve que las densidades tienen forma parecida y estan
+# corridas, que es lo que justifica leer la brecha como un desplazamiento.
 resumen_brecha <- muestra_analisis |>
   group_by(mujer) |>
   summarise(n = n(), media_log = mean(ingreso_log),
@@ -142,13 +192,18 @@ p_brecha <- muestra_analisis |>
   tema_ps + theme(legend.position = "top")
 guardar_fig(p_brecha, "ingreso_por_genero.png")
 
-# 4. Why Section 1 conditions on hours -----------------------------------------
-# The income-hours relationship is concave: steep below the full-time week and
-# essentially flat above it. Two consequences for Section 1. First, hours
-# vary
-# over the life cycle, so leaving them out lets the age profile absorb
-# variation in labour supply rather than in the wage. Second, the flattening
-# above ~40 h means hours should not be assumed to enter linearly.
+# 4. Por que la Seccion 1 controla por horas ----------------------------------
+# La relacion ingreso-horas es concava: empinada por debajo de la jornada
+# completa y practicamente plana por encima. Dos consecuencias para la
+# Seccion 1. Primera: las horas varian a lo largo del ciclo de vida, de modo
+# que omitirlas hace que el perfil de edad absorba variacion en OFERTA LABORAL
+# y no en el salario. Segunda: el aplanamiento por encima de ~40 h advierte
+# contra suponer que las horas entran linealmente.
+#
+# El suavizado es loess y no una recta: la pregunta es justamente que forma
+# tiene la relacion, y responderla con una recta seria dar por sentada la
+# respuesta. La transparencia de los puntos (alpha = 0,05) hace falta porque
+# con 14.751 observaciones una nube opaca no deja ver donde esta la masa.
 p_horas <- ggplot(muestra_analisis, aes(horas, ingreso_log)) +
   geom_point(alpha = 0.05, colour = "grey45", size = 0.5) +
   geom_smooth(method = "loess", formula = y ~ x, se = TRUE,
@@ -166,17 +221,24 @@ p_horas <- ggplot(muestra_analisis, aes(horas, ingreso_log)) +
   tema_ps
 guardar_fig(p_horas, "ingreso_por_horas.png")
 
-# 5. Why `mes` and `chunk_id` never become predictors --------------------------
-# The 10 chunks are ordered by survey month (chunk 1 = Jan-Feb ... chunk 10 =
-# Nov-Dec), so the mandated 1-7 / 8-10 split is temporal rather than
-# random.
-# Two consequences:
-#   a. `mes` and `chunk_id` must never enter a model: either one would leak the
-#      split (see `no_predictores` in 02_cleaning.R).
-#   b. Reading the validation RMSE as ordinary out-of-sample error requires no
-#      level shift between folds. There is none: December does not jump,
-#      because the prima de servicios already enters y_total_m on a
-#      monthly-equivalent basis.
+# 5. Por que `mes` y `chunk_id` nunca son predictores -------------------------
+# Los 10 chunks estan ordenados por mes de encuesta (chunk 1 = enero-febrero
+# ... chunk 10 = noviembre-diciembre), de modo que el corte 1-7 / 8-10 que
+# fija el enunciado es TEMPORAL y no aleatorio. El mes 9 se reparte entre los
+# chunks 7 y 8, asi que la frontera cae dentro de septiembre.
+#
+# Dos consecuencias:
+#   a. Ni `mes` ni `chunk_id` pueden entrar a un modelo: cualquiera de los dos
+#      filtra la particion (ver `no_predictores` en 02_cleaning.R).
+#   b. Leer el RMSE de validacion como error fuera de muestra ordinario exige
+#      que no haya salto de nivel entre folds. No lo hay: diciembre no se
+#      dispara, porque la prima de servicios ya entra en `y_total_m`
+#      mensualizada, y la dummy de diciembre sobre una tendencia mensual no se
+#      distingue de cero (ver la salida de `test_deriva` al final).
+#
+# Esta figura es la que habilita a la Seccion 3 a interpretar su RMSE de
+# validacion: sin ella, un salto de nivel entre folds seria una explicacion
+# alternativa de cualquier deterioro fuera de muestra.
 ingreso_mensual <- muestra_analisis |>
   group_by(mes) |>
   summarise(n = n(), media_log = mean(ingreso_log),
@@ -216,7 +278,10 @@ guardar_fig(p_deriva, "deriva_temporal.png")
 test_deriva <- lm(ingreso_log ~ mes + I(mes == 11) + I(mes == 12),
                   data = muestra_analisis)
 
-# Console summary --------------------------------------------------------------
+# Resumen en consola ----------------------------------------------------------
+# Los mensajes del pipeline quedan en ingles a proposito: son log, no
+# documentacion. De aqui salen los numeros que se citan en el README y en los
+# decks, asi que no se transcriben a mano a ningun lado.
 message("\n--- 1. skewness of the outcome ---")
 message("  level: ", round(asimetria_nivel, 2),
         " | log: ", round(asimetria_log, 3))

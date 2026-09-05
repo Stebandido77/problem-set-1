@@ -1,12 +1,35 @@
 # 01_scraping.R --------------------------------------------------------------
-# Scrapes the 10 GEIH 2018 chunks and stores them in stores/raw/.
-# Be polite: cache locally and do not re-download if the file already exists.
+# Descarga los 10 chunks de la GEIH 2018 y los guarda en stores/raw/.
 #
-# NOTE ON THE SITE STRUCTURE
-# The linked pages (page1.html ... page10.html) are empty shells: the table is
-# injected client-side by a `w3-include-html` XHR shim, so parsing them yields
-# zero tables. The actual payload lives at pages/geih_page_N.html (~22.7 MB of
-# raw <table> each) and is served over plain HTTP, so no browser is needed.
+# COMO SE COMPORTA EL SCRAPER
+# El scraper cachea en disco y no vuelve a pedir un archivo que ya existe, deja
+# 1,5 s entre peticiones vivas y se identifica con un user agent que dice de
+# que curso viene y como contactarnos. Son ~227 MB en un servidor de GitHub
+# Pages que no es nuestro: reventarlo a peticiones seria gratuito para
+# nosotros y caro para el.
+#
+# COMO ESTA ARMADO EL SITIO
+# Las paginas enlazadas (page1.html ... page10.html) son cascaras vacias: la
+# tabla la inyecta el navegador con un shim XHR `w3-include-html`, asi que
+# parsearlas devuelve CERO tablas. El contenido real vive en
+# pages/geih_page_N.html (~22,7 MB de <table> crudo cada uno) y se sirve por
+# HTTP plano, de modo que no hace falta un navegador headless: basta httr2.
+# Ese hallazgo es la razon de que este script sea corto.
+#
+# POR QUE NO SE USA janitor::clean_names()
+# `clean_names()` convertiria `totalHoursWorked` en `total_hours_worked`,
+# `maxEducLevel` en `max_educ_level` y `y_total_m` en `y_total_m` (esta ultima
+# sobrevive, pero las camelCase no). Los nombres del DANE se conservan
+# VERBATIM, camelCase incluido, por dos razones: mantienen la correspondencia
+# uno a uno con el diccionario de variables del curso, y el enunciado nombra
+# las variables tal cual. El precio es convivir con dos convenciones de
+# nomenclatura en el mismo data frame, y se paga a proposito: las columnas
+# del DANE quedan en su forma original y las que construye el equipo van en
+# snake_case y en espanol (ver `02_cleaning.R`). Que el estilo cambie es la
+# senal visual de que la columna no es nuestra.
+#
+# Las 178 columnas crudas se conservan intactas en stores/raw/; la seleccion
+# ocurre despues, en `02_cleaning.R`.
 # ----------------------------------------------------------------------------
 
 source(here::here("scripts", "00_packages.R"))
@@ -18,14 +41,27 @@ dir_html   <- file.path(dir_crudos, "html")
 dir.create(dir_html, recursive = TRUE, showWarnings = FALSE)
 
 n_chunks       <- 10
-pausa_cortesia <- 1.5    # seconds between live requests
-bytes_min      <- 1e6    # sanity floor: a real chunk is ~22 MB
+pausa_cortesia <- 1.5    # segundos entre peticiones vivas
+bytes_min      <- 1e6    # piso de cordura: un chunk real pesa ~22 MB
 agente_usuario <- paste(
   "MECA4107-PS1/1.0 (Universidad de los Andes coursework;",
   "R httr2; contact via course staff)"
 )
 
-# Fetch one chunk's HTML to disk, with retries and exponential backoff. -------
+#' Descargar a disco el HTML de un chunk
+#'
+#' Reintenta hasta 4 veces con backoff exponencial (2, 4, 8, 16 s) porque los
+#' archivos son grandes y una descarga cortada es el modo de falla tipico.
+#' El timeout de 900 s esta calibrado para eso, no para un servidor lento.
+#'
+#' @param chunk Entero de 1 a 10: el numero de chunk en la URL.
+#' @param destino Ruta del archivo donde se escribe el HTML.
+#' @return La ruta `destino`, de forma invisible. Falla con `stop()` si el
+#'   archivo bajado pesa menos de `bytes_min`, y borra antes el parcial: un
+#'   archivo truncado en disco seria peor que no tenerlo, porque las corridas
+#'   siguientes lo tomarian por cache valido.
+#' @examples
+#' # descargar_chunk_html(1, file.path(dir_html, "geih_page_1.html"))
 descargar_chunk_html <- function(chunk, destino) {
   url <- sprintf("%s/pages/geih_page_%d.html", url_base, chunk)
 
@@ -43,15 +79,24 @@ descargar_chunk_html <- function(chunk, destino) {
   invisible(destino)
 }
 
-# Parse the embedded <table> into a tibble. -----------------------------------
-# Column names are kept verbatim (camelCase included) so they keep matching
-# the course data dictionary; janitor::clean_names() would break that.
+#' Parsear la <table> incrustada y devolverla como tibble
+#'
+#' Los nombres de columna se dejan tal como vienen: ver la nota sobre
+#' `clean_names()` en el encabezado del archivo.
+#'
+#' @param ruta Ruta al HTML ya descargado.
+#' @param chunk Entero de 1 a 10; se agrega como primera columna `chunk_id`.
+#' @return Un tibble de ~3.218 x 178 con `chunk_id` al frente. `chunk_id` es
+#'   la unica columna que agregamos aqui, y queda registrada en
+#'   `no_predictores` (`02_cleaning.R`) porque codifica el calendario.
+#' @examples
+#' # parsear_chunk_html(file.path(dir_html, "geih_page_1.html"), 1)
 parsear_chunk_html <- function(ruta, chunk) {
   tabla <- xml2::read_html(ruta) |>
     rvest::html_element("table") |>
     rvest::html_table(header = TRUE, convert = TRUE)
 
-  # tableHTML emits an unnamed leading column holding the row names.
+  # tableHTML emite una primera columna sin nombre con los nombres de fila.
   if (!nzchar(names(tabla)[1]) || is.na(names(tabla)[1])) {
     tabla <- tabla[, -1]
   }
@@ -59,7 +104,18 @@ parsear_chunk_html <- function(ruta, chunk) {
   tabla |> dplyr::mutate(chunk_id = chunk, .before = 1)
 }
 
-# Download-or-reuse, parse-or-reuse, one chunk at a time. ---------------------
+#' Obtener un chunk, reutilizando lo que ya este en disco
+#'
+#' Cache en dos niveles: si existe el `.rds` no se parsea nada; si existe el
+#' HTML completo se parsea sin pedir nada a la red; solo si no hay ninguno de
+#' los dos se hace una peticion viva. Por eso una segunda corrida del pipeline
+#' no emite ni una peticion.
+#'
+#' @param chunk Entero de 1 a 10.
+#' @return El tibble del chunk. Como efecto secundario deja
+#'   `stores/raw/chunk_NN.rds` (y el HTML) escritos en disco.
+#' @examples
+#' # chunks <- lapply(seq_len(n_chunks), scrapear_chunk)
 scrapear_chunk <- function(chunk) {
   ruta_rds  <- file.path(dir_crudos, sprintf("chunk_%02d.rds", chunk))
   ruta_html <- file.path(dir_html, sprintf("geih_page_%d.html", chunk))
@@ -85,7 +141,12 @@ scrapear_chunk <- function(chunk) {
 
 chunks <- lapply(seq_len(n_chunks), scrapear_chunk)
 
-# Report ----------------------------------------------------------------------
+# Reporte ---------------------------------------------------------------------
+# El chequeo que importa es el de esquema: si un chunk trajera columnas
+# distintas, el `bind_rows()` de `02_cleaning.R` las rellenaria con NA en
+# silencio y la muestra quedaria mal sin que nadie se entere. Por eso se
+# compara la lista de nombres contra el chunk 1 y, si difiere, se imprime
+# exactamente que columna sobra o falta.
 tamanos <- vapply(chunks, nrow, integer(1))
 nombres_por_chunk <- lapply(chunks, names)
 mismo_esquema <- all(vapply(
@@ -112,5 +173,7 @@ if (!mismo_esquema) {
   }
 }
 
+# Los 10 chunks juntos ocupan ~31 MB en memoria y este script ya no los
+# usa: quien los necesita es `02_cleaning.R`, que los relee del `.rds`.
 rm(chunks)
 invisible(gc())

@@ -73,6 +73,67 @@ Distribuidos en 10 chunks. Variable de resultado: `y_total_m`.
 
 **Particion (Seccion 3):** chunks 1–7 = entrenamiento · chunks 8–10 = validacion.
 
+### Glosario de variables
+
+Dos convenciones de nombres conviven a proposito en el mismo data frame, y el
+estilo es la senal de a quien pertenece cada columna:
+
+- **Columnas del DANE**: nombre original, `camelCase` incluido. No se pasan por
+  `janitor::clean_names()` ni se traducen, para que sigan correspondiendo uno a
+  uno con el diccionario del curso y con el enunciado.
+- **Columnas del equipo**: `snake_case` en espanol, construidas en
+  `scripts/02_cleaning.R`.
+
+Los 10 chunks crudos traen 178 columnas; la muestra de analisis conserva 27.
+Las definiciones de abajo se verificaron contra el dato, no se supusieron.
+
+#### Variables del DANE
+
+| Variable | Que es | Valores observados |
+|---|---|---|
+| `y_total_m` | **Outcome.** Ingreso laboral mensual total. Suma exacta de `y_ingLab_m + y_gananciaIndep_m` (coincide en el 100% de la muestra) y sigue la serie **sin imputar**: solo 20 filas (0,14%) tienen valor en `impaes`. | Numerica. Sin ceros exactos, solo `NA` |
+| `y_total_m_ha` | Ingreso laboral **por hora**. Es exactamente `y_total_m / (4,2857 * totalHoursWorked)`, es decir 30/7 semanas por mes. | Numerica |
+| `ocu` | Ocupado en la semana de referencia. Define la muestra base. | `0`, `1` |
+| `age` | Edad en anos cumplidos. | `0`–`95` en el crudo |
+| `sex` | Sexo. **`1` = hombre, `0` = mujer.** De aqui sale `mujer`. | `0`, `1` |
+| `relab` | Posicion ocupacional. Documentados por el uso que se les da: `4` cuenta propia (coincide exactamente con `cuentaPropia == 1`), `5` patron o empleador, `6` y `7` trabajo no remunerado, `8` jornalero (1 sola observacion), `9` otro. `NA` exactamente cuando `ocu != 1`. | `1`–`9` |
+| `oficio` | Codigo de ocupacion. 79 niveles llegan a la muestra de analisis; los raros se colapsan en `oficio_grupo`. | `2`–`99` |
+| `maxEducLevel` | Nivel educativo maximo alcanzado. La codificacion **no es monotona**: `college == 1` coincide exactamente con `maxEducLevel == 6`, no con el `7`. Las etiquetas se leen del diccionario del curso; aqui entra siempre como factor, nunca como numero. | `1`–`7` |
+| `sizeFirm` | Tamano de la empresa. `microEmpresa == 1` coincide exactamente con `sizeFirm` en `{1, 2}`. | `1`–`5` |
+| `estrato1` | Estrato socioeconomico de la vivienda. Entra como factor: la distancia entre estratos no es cardinal. | `1`–`6` |
+| `cotPension` | Cotizacion a pension. `2` corresponde siempre a `formal == 0`; `1` y `3` a `formal == 1` salvo 73 de 16.663 filas (0,4%). | `1`, `2`, `3` |
+| `p6426` | Antiguedad en el trabajo actual, en meses. Se renombra a `antiguedad_meses`. | `0`–`600` |
+| `totalHoursWorked` | Horas efectivamente trabajadas en la semana. Control en la Seccion 1, predictor en la Seccion 3. | `2`–`130` en el crudo |
+| `hoursWorkUsual` | Horas que la persona trabaja habitualmente. | `2`–`130` |
+| `formal` | Indicador de formalidad. | `0`, `1` |
+| `college` | Educacion superior. Equivale a `maxEducLevel == 6`. | `0`, `1` |
+| `cuentaPropia` | Trabajador por cuenta propia. Equivale a `relab == 4`. | `0`, `1` |
+| `microEmpresa` | Micro empresa. Equivale a `sizeFirm` en `{1, 2}`. | `0`, `1` |
+| `fex_c` | Factor de expansion del diseno muestral. **No se aplica**; se conserva para el chequeo ponderado de la Seccion 2. | `129,45`–`477,97` |
+| `fweight` | El mismo factor redondeado: `fweight == round(fex_c)` en el 100% de las filas. | `129`–`478` |
+| `mes` | Mes de la encuesta. **Nunca es predictor**: filtra la particion. | `1`–`12` |
+| `directorio`, `secuencia_p`, `orden` | Identificadores de vivienda, hogar y persona. Se conservan solo para rastrear una fila hasta el dato crudo. | Enteros |
+| `chunk_id` | Numero de chunk, agregado por `01_scraping.R`. Ordenado por mes (chunk 1 = ene-feb ... chunk 10 = nov-dic), asi que **nunca es predictor**. | `1`–`10` |
+| `impa`, `impaes` | Ingreso de la actividad principal, antes y despues de la imputacion del DANE. No entran a la muestra: se usan solo en el chequeo de seleccion de `document/notas_pulso.md`. | Numericas |
+
+#### Variables construidas por el equipo
+
+| Variable | Definicion | Por que |
+|---|---|---|
+| `ingreso_log` | `log(y_total_m)` | Outcome de las tres secciones. En niveles la asimetria es 8,49; en logaritmos, -0,348 |
+| `mujer` | `as.integer(sex == 0)` | Invierte la codificacion del DANE para que el coeficiente de la Seccion 2 se lea directo como brecha femenina |
+| `edad_2` | `age^2` | Sin el cuadratico no hay edad pico que estimar |
+| `relab_grupo` | `relab`, con el `8` plegado en el `9` | `relab == 8` tiene 1 sola observacion de entrenamiento: apalancamiento 1 y LOOCV infinito |
+| `oficio_grupo` | `oficio`, con los niveles de menos de 30 obs. **en chunks 1-7** colapsados en `"otros"` | Umbral aprendido solo en entrenamiento. Sobreviven 50 niveles, se colapsan 29, `"otros"` queda con el 2,8% |
+| `educ` | `factor(maxEducLevel)` | Codificacion no cardinal |
+| `tamano_empresa` | `factor(sizeFirm)` | Codificacion no cardinal |
+| `estrato` | `factor(estrato1)` | Codificacion no cardinal |
+| `cot_pension` | `factor(cotPension)` | Codificacion no cardinal |
+| `antiguedad_meses` | `p6426` | Renombre legible |
+| `horas` | `totalHoursWorked` | Renombre legible |
+| `horas_usuales` | `hoursWorkUsual` | Renombre legible |
+| `particion` | `"entrenamiento"` si `chunk_id` esta en 1–7, si no `"validacion"` | Determinista y temporal, no aleatoria: no depende de la semilla |
+
 ## Decisiones de limpieza
 
 Todas viven en `construir_muestra_analisis()` dentro de `scripts/02_cleaning.R`, que

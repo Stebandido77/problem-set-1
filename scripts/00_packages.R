@@ -1,21 +1,35 @@
 # 00_packages.R --------------------------------------------------------------
-# Loads (and installs if needed) every package used in the project.
+# Carga (e instala si hace falta) todos los paquetes del proyecto y fija la
+# semilla global.
+#
+# Este archivo es el UNICO lugar donde se declaran dependencias. Cualquier
+# paquete nuevo se registra aqui, no con un `library()` suelto a mitad de otro
+# script: de lo contrario un clone limpio falla en un `source()` intermedio y
+# el pipeline deja de ser reproducible.
+#
+# POR QUE LA SEMILLA VIVE AQUI
+# `set.seed(1234)` se ejecuta al final del archivo, y todos los demas scripts
+# empiezan con `source("00_packages.R")`. Asi cualquier cosa aleatoria
+# (bootstrap de la Seccion 1 y de la Seccion 2, remuestreos de la Seccion 3)
+# arranca del mismo estado sin que cada script tenga que acordarse de fijarla.
+# La particion entrenamiento/validacion NO usa la semilla: es determinista,
+# viene dada por `chunk_id` (ver `02_cleaning.R`).
 # ----------------------------------------------------------------------------
 
 if (!require("pacman")) install.packages("pacman")
 
 pacman::p_load(
-  tidyverse,   # data wrangling and ggplot2
-  rvest,       # web scraping
-  httr2,       # polite requests
-  here,        # project-relative paths
-  janitor,     # clean_names()
-  digest,      # hash of the cleaning rules stored with the sample
+  tidyverse,   # manipulacion de datos y ggplot2
+  rvest,       # scraping: extraccion de la tabla HTML
+  httr2,       # peticiones con reintentos y user agent identificable
+  here,        # rutas relativas al proyecto (nada de setwd())
+  janitor,     # clean_names(): se carga, pero NO se usa (ver 01_scraping.R)
+  digest,      # hash SHA-256 de las reglas de limpieza
   boot,        # bootstrap
-  fixest,      # fast regressions
-  modelsummary, # publication-quality tables
-  skimr,       # descriptives
-  caret        # validation / CV helpers
+  fixest,      # regresiones rapidas con efectos fijos
+  modelsummary, # tablas con calidad de publicacion
+  skimr,       # descriptivas
+  caret        # utilidades de validacion cruzada
 )
 
 set.seed(1234)
