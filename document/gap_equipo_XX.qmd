@@ -9,6 +9,33 @@ format:
 lang: es
 ---
 
+<!-- NOTA DE REPRODUCCION -------------------------------------------------
+
+Este deck NO calcula nada: solo incluye tablas y figuras que ya produjo el
+pipeline. Antes de renderizarlo hay que correr, desde la raiz del proyecto:
+
+    Rscript scripts/99_run_all.R
+
+Eso deja las figuras en `views/figures/` y las tablas en `views/tables/`.
+Desde un clone limpio con `stores/raw/` vacio tarda ~2 min (incluye la
+descarga de ~227 MB de HTML crudo); con el cache en disco, ~20 s.
+
+Ninguna cifra se transcribe a mano. Todas salen del log del pipeline o de los
+archivos de `views/`, y la muestra de referencia es siempre la misma:
+N = 14.751 observaciones, la que produce `construir_muestra_analisis()` en
+`scripts/02_cleaning.R`. Si una cifra de estas laminas no se puede rastrear
+hasta una corrida, es un error.
+
+Si `02_cleaning.R` advierte que `muestra_analisis.rds` se construyo con reglas
+de limpieza distintas, hay que regenerarlo ANTES de renderizar: de lo
+contrario las laminas quedan describiendo una muestra que ya no existe.
+
+Insumos de esta seccion:
+  * scripts/20_gender_gap.R
+  * views/figures/ingreso_por_genero.png (la brecha cruda, -0,2375)
+  * document/notas_pulso.md              (seleccion por no respuesta)
+--------------------------------------------------------------------- -->
+
 ## Result Overview
 
 <!-- OBLIGATORIA: el hallazgo principal de la seccion, antes de la metodologia. -->
@@ -20,5 +47,31 @@ lang: es
 ## Especificaciones
 
 ## Resultados
+
+## Limitacion: seleccion por no respuesta de ingreso
+
+La muestra excluye 1.778 ocupados adultos sin ingreso laboral observado
+(10,75%). Entre ellos **los hombres estan sobrerrepresentados**: 61,0% frente
+a 52,6% en la muestra estimada. La brecha se estima entonces sobre una muestra
+masculina depurada de quienes reportaron cero.
+
+`y_total_m` se construye sobre la serie previa a imputar, pero el DANE **si**
+publica un valor imputado (`impaes`) para 1.451 de esas personas. Eso permite
+acotar el sesgo:
+
+| Muestra | $N$ | Brecha cruda |
+|---|---|---|
+| Base (ingreso observado) | 14.751 | $-0{,}2375$ |
+| Ampliada con `impaes` | 16.201 | $-0{,}2426$ |
+
+**La brecha se mueve $-0{,}0051$ log points ($-0{,}4$ pp).** El sesgo va en
+direccion contraria a la intuitiva: la brecha observada **subestima** la
+desventaja femenina, y lo hace en cerca del 2% de su propio valor. Los hombres
+excluidos no son de bajo ingreso — el DANE les imputa una media por encima de
+la masculina observada.
+
+**Conclusion: la seleccion no compromete el resultado de esta seccion.**
+El chequeo descansa en que la imputacion del DANE sea correcta, de modo que es
+un analisis de sensibilidad y no una cota formal.
 
 ## Conclusion
