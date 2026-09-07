@@ -43,3 +43,21 @@
 source(here::here("scripts", "02_cleaning.R"))
 source(here::here("scripts", "functions", "rmse.R"))
 source(here::here("scripts", "functions", "rmse_loocv.R"))
+
+# -----------------------------------------------------------------------------
+# 1. TRAIN / VALIDATION SPLIT
+# -----------------------------------------------------------------------------
+
+train <- muestra_analisis |>
+  dplyr::filter(particion == "entrenamiento")
+
+validation <- muestra_analisis |>
+  dplyr::filter(particion == "validacion")
+
+
+# Check partition
+nrow(train)
+nrow(validation)
+
+table(train$chunk_id)
+table(validation$chunk_id)
