@@ -20,34 +20,9 @@
 
 source(here::here("scripts", "02_cleaning.R"))
 source(here::here("scripts", "functions", "edad_pico.R"))
-
-dir_figuras <- here::here("views", "figures")
-dir.create(dir_figuras, recursive = TRUE, showWarnings = FALSE)
-
-# Un unico tema para las cinco figuras: si cada una trae su propio estilo, el
-# deck se lee como cinco trabajos distintos.
-tema_ps <- theme_minimal(base_size = 11) +
-  theme(
-    plot.title       = element_text(face = "bold", size = 11.5),
-    plot.subtitle    = element_text(size = 9, colour = "grey30"),
-    panel.grid.minor = element_blank()
-  )
-
-#' Guardar una figura en views/figures/ con tamano y resolucion uniformes
-#'
-#' @param grafico Objeto de ggplot2.
-#' @param nombre Nombre del archivo, con extension (por ejemplo
-#'   `"ingreso_por_edad.png"`). La ruta la pone la funcion.
-#' @param ancho,alto Pulgadas. Los defaults estan calibrados para una lamina
-#'   de beamer; solo se cambian cuando la figura lleva facetas.
-#' @return La ruta del archivo, de forma invisible (lo que devuelve `ggsave`).
-#' @examples
-#' # guardar_fig(p_edad, "ingreso_por_edad.png")
-#' # guardar_fig(p_log, "dist_ingreso_log.png", ancho = 8.4)
-guardar_fig <- function(grafico, nombre, ancho = 7.6, alto = 4.6) {
-  ggsave(file.path(dir_figuras, nombre), grafico, width = ancho,
-         height = alto, dpi = 300)
-}
+# `tema_ps`, `guardar_fig()` y `num_es()`: las figuras de esta seccion y las de
+# la Seccion 1 van al mismo deck y comparten estilo.
+source(here::here("scripts", "functions", "figuras.R"))
 
 #' Coeficiente de asimetria muestral (tercer momento estandarizado)
 #'
@@ -63,24 +38,6 @@ guardar_fig <- function(grafico, nombre, ancho = 7.6, alto = 4.6) {
 #' # asimetria(muestra_analisis$y_total_m)    # 8,49 en niveles
 #' # asimetria(muestra_analisis$ingreso_log)  # -0,348 en logaritmos
 asimetria <- function(x) mean((x - mean(x))^3) / sd(x)^3
-
-#' Formatear un numero para un subtitulo, en convencion espanola
-#'
-#' Existe para que las cifras de las figuras se INTERPOLEN desde el objeto que
-#' las produjo en vez de escribirse a mano. Un numero tecleado en un subtitulo
-#' sobrevive a los cambios de muestra sin avisar; uno interpolado, no.
-#'
-#' @param x Escalar numerico.
-#' @param digitos Decimales a mostrar.
-#' @param signo Si `TRUE`, fuerza el signo explicito (`+` o `-`).
-#' @return Cadena con "," como separador decimal.
-#' @examples
-#' # num_es(0.008690, 4, signo = TRUE)  # "+0,0087"
-#' # num_es(0.757700, 2)                # "0,76"
-num_es <- function(x, digitos, signo = FALSE) {
-  formatC(x, format = "f", digits = digitos, decimal.mark = ",",
-          flag = if (signo) "+" else "")
-}
 
 # 1. Por que el outcome va en logaritmos --------------------------------------
 # `y_total_m` esta fuertemente sesgada a la derecha (asimetria 8,49): en
