@@ -43,6 +43,7 @@
 source(here::here("scripts", "02_cleaning.R"))
 source(here::here("scripts", "functions", "rmse.R"))
 source(here::here("scripts", "functions", "rmse_loocv.R"))
+source(here::here("scripts", "20_gender_gap.R"))
 
 # -----------------------------------------------------------------------------
 # 1. TRAIN / VALIDATION SPLIT
@@ -61,3 +62,27 @@ nrow(validation)
 
 table(train$chunk_id)
 table(validation$chunk_id)
+
+# -----------------------------------------------------------------------------
+# 2. RE-ESTIMATE SECTION 2 BASELINE
+# -----------------------------------------------------------------------------
+m2_train <- update(
+  m2,
+  data = train
+)
+m2_train
+
+pred_m2 <- predict(
+  m2_train,
+  newdata = validation
+)
+# -----------------------------------------------------------------------------
+# 3. RMSE Section 2 Model
+#-----------------------------------------------------------------------------
+
+rmse_m2 <- rmse(
+  validation$ingreso_log,
+  pred_m2
+)
+
+rmse_m2
