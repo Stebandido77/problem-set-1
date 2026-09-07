@@ -29,7 +29,10 @@ pacman::p_load(
   fixest,      # regresiones rapidas con efectos fijos
   modelsummary, # tablas con calidad de publicacion
   skimr,       # descriptivas
-  caret        # utilidades de validacion cruzada
+  caret,       # utilidades de validacion cruzada
+  lmtest,      # Ajuste de modelo Lineal
+  sandwich,    # errores robustos
+  broomer     # tablas de regresion bonitas
 )
 
 set.seed(1234)
