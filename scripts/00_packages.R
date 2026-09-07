@@ -31,7 +31,8 @@ pacman::p_load(
   skimr,       # descriptivas
   caret,       # utilidades de validacion cruzada
   lmtest,      # Ajuste de modelo Lineal
-  sandwich     # errores robustos
-)
+  sandwich,    # errores robustos
+  marginaleffects # efectos marginales y predicciones
+  )
 
 set.seed(1234)
