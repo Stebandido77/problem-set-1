@@ -50,7 +50,8 @@ source(here::here("scripts", "functions", "edad_pico.R"))
 m1 <- lm(ingreso_log ~ mujer, data = muestra_analisis)
 
 # (2) Condicional Preferido (Capital Humano / Predeterminadas)
-m2 <- lm(ingreso_log ~ mujer + age + edad_2 + educ + estrato, data = muestra_analisis)
+m2 <- lm(ingreso_log ~ mujer + age + edad_2 + educ + estrato,
+         data = muestra_analisis)
 
 # (3) Modelo Condicional con Bad Controls (Características del Puesto)
 m3 <- lm(
@@ -63,13 +64,17 @@ m3 <- lm(
 # 2. Descomposición Frisch-Waugh-Lovell (FWL)
 # -----------------------------------------------------------------------------
 
-res_mujer <- residuals(lm(mujer ~ age + edad_2 + educ + estrato, data = muestra_analisis))
-res_y     <- residuals(lm(ingreso_log ~ age + edad_2 + educ + estrato, data = muestra_analisis))
-m2_fwl    <- lm(res_y ~ res_mujer - 1)
+res_mujer <- residuals(lm(mujer ~ age + edad_2 + educ + estrato, 
+                          data = muestra_analisis))
+res_y <- residuals(lm(ingreso_log ~ age + edad_2 + educ + estrato,
+                      data = muestra_analisis))
+m2_fwl <- lm(res_y ~ res_mujer - 1)
 
 cat("--- VERIFICACIÓN TEORÍA FWL ---\n")
-cat("Coeficiente de 'mujer' en regresión múltiple (m2): ", coef(m2)["mujer"], "\n")
-cat("Coeficiente de 'res_mujer' en regresión FWL:        ", coef(m2_fwl)["res_mujer"], "\n\n")
+cat("Coeficiente de 'mujer' en regresión múltiple (m2): ", 
+    coef(m2)["mujer"], "\n")
+cat("Coeficiente de 'res_mujer' en regresión FWL:        ",
+     coef(m2_fwl)["res_mujer"], "\n\n")
 
 # -----------------------------------------------------------------------------
 # 3. Errores Estándar Analíticos vs. Bootstrap
@@ -82,7 +87,8 @@ boot_brecha <- function(data, indices) {
 }
 
 set.seed(1234)
-res_boot_brecha <- boot(data = muestra_analisis, statistic = boot_brecha, R = 1000)
+res_boot_brecha <- boot(data = muestra_analisis, 
+                        statistic = boot_brecha, R = 1000)
 
 se_analitico_m2 <- sqrt(diag(vcovHC(m2, type = "HC1")))["mujer"]
 se_bootstrap_m2 <- sd(res_boot_brecha$t)
@@ -101,7 +107,8 @@ modelos <- list(
   "(3) Bad Controls"  = m3
 )
 
-dir.create(here::here("views", "tables"), showWarnings = FALSE, recursive = TRUE)
+dir.create(here::here("views", "tables"), 
+           showWarnings = FALSE, recursive = TRUE)
 
 msummary(
   modelos,
@@ -109,7 +116,7 @@ msummary(
   stars = TRUE,
   gof_omit = "AIC|BIC|Log.Lik|F",
   title = "Comparación de la Brecha de Ingreso Laboral por Género",
-  output = here::here("views", "tables", "tabla_brecha_genero.html")
+  output = here::here("views", "tables", "tabla_brecha_genero.tex")
 )
 
 # -----------------------------------------------------------------------------
@@ -119,8 +126,17 @@ msummary(
 boot_edad_pico <- function(data, indices) {
   d <- data[indices, ]
   
-  m_h <- lm(ingreso_log ~ age + edad_2 + educ + estrato, data = dplyr::filter(d, mujer == 0))
-  m_m <- lm(ingreso_log ~ age + edad_2 + educ + estrato, data = dplyr::filter(d, mujer == 1))
+  d_hombres <- dplyr::filter(d, .data$mujer == 0)
+  d_mujeres <- dplyr::filter(d, .data$mujer == 1)
+
+  m_h <- lm(
+    ingreso_log ~ age + edad_2 + educ + estrato,
+    data = d_hombres
+  )
+  m_m <- lm(
+    ingreso_log ~ age + edad_2 + educ + estrato,
+    data = d_mujeres
+  )
   
   pico_h <- edad_pico(m_h, "age", "edad_2")
   pico_m <- edad_pico(m_m, "age", "edad_2")
@@ -129,24 +145,31 @@ boot_edad_pico <- function(data, indices) {
 }
 
 set.seed(1234)
-res_boot_picos <- boot(data = muestra_analisis, statistic = boot_edad_pico, R = 1000)
+res_boot_picos <- boot(
+  data = muestra_analisis,
+  statistic = boot_edad_pico,
+  R = 1000
+)
 
 ic_hombres <- boot.ci(res_boot_picos, type = "perc", index = 1)
 ic_mujeres <- boot.ci(res_boot_picos, type = "perc", index = 2)
 
 cat("--- EDAD PICO E INTERVALOS DE CONFIANZA (BOOTSTRAP) ---\n")
 cat("Edad pico hombres: ", round(res_boot_picos$t0[1], 4),
-    " con IC 95%: [", round(ic_hombres$percent[4], 4), ", ", round(ic_hombres$percent[5], 4), "]\n")
+  " con IC 95%: [", round(ic_hombres$percent[4], 4), ", ",
+  round(ic_hombres$percent[5], 4), "]\n")
 cat("Edad pico mujeres: ", round(res_boot_picos$t0[2], 4),
-    " con IC 95%: [", round(ic_mujeres$percent[4], 4), ", ", round(ic_mujeres$percent[5], 4), "]\n\n")
+  " con IC 95%: [", round(ic_mujeres$percent[4], 4), ", ",
+  round(ic_mujeres$percent[5], 4), "]\n\n")
 
 # -----------------------------------------------------------------------------
 # 6. Gráfico de Perfiles Edad-Ingreso Predichos y Exportación (CORREGIDO)
 # -----------------------------------------------------------------------------
 
-# Usamos I(age^2) directamente en la fórmula para que R reconozca el término cuadrático dinámico
+# Usamos I(age^2) directamente en la fórmula para que R reconozca el
+# término cuadrático dinámico.
 m2_interact <- lm(
-  ingreso_log ~ mujer * (age + I(age^2)) + educ + estrato, 
+  ingreso_log ~ mujer * (age + I(age^2)) + educ + estrato,
   data = muestra_analisis
 )
 
@@ -163,14 +186,31 @@ grid_edad_preds <- predictions(
 )
 
 # Construcción de la gráfica
-p_edad <- ggplot(grid_edad_preds, aes(x = age, y = estimate, color = factor(mujer))) +
+p_edad <- ggplot(
+  grid_edad_preds,
+  aes(x = age, y = estimate, color = factor(mujer))
+) +
   geom_line(size = 1.2) +
-  geom_vline(xintercept = res_boot_picos$t0[1], linetype = "dashed", color = "navy") +
-  geom_vline(xintercept = res_boot_picos$t0[2], linetype = "dashed", color = "darkred") +
-  scale_color_manual(values = c("0" = "navy", "1" = "darkred"), labels = c("Hombres", "Mujeres")) +
+  geom_vline(
+    xintercept = res_boot_picos$t0[1],
+    linetype = "dashed",
+    color = "navy"
+  ) +
+  geom_vline(
+    xintercept = res_boot_picos$t0[2],
+    linetype = "dashed",
+    color = "darkred"
+  ) +
+  scale_color_manual(
+    values = c("0" = "navy", "1" = "darkred"),
+    labels = c("Hombres", "Mujeres")
+  ) +
   labs(
     title = "Perfiles Edad-Ingreso Predichos por Género",
-    subtitle = "Predicciones promedio ajustadas sobre las características de la muestra (Líneas punteadas = Edades pico)",
+    subtitle = paste(
+      "Predicciones promedio ajustadas sobre las características de la",
+      "muestra (Líneas punteadas = Edades pico)"
+    ),
     x = "Edad (Años)",
     y = "Log(Ingreso Laboral Mensual)",
     color = "Género"
@@ -178,7 +218,8 @@ p_edad <- ggplot(grid_edad_preds, aes(x = age, y = estimate, color = factor(muje
   theme_minimal()
 
 # Guardar la gráfica corregida
-dir.create(here::here("views", "figures"), showWarnings = FALSE, recursive = TRUE)
+dir.create(here::here("views", "figures"), 
+           showWarnings = FALSE, recursive = TRUE)
 
 ggsave(
   here::here("views", "figures", "perfil_edad_ingreso.png"), 

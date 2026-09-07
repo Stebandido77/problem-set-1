@@ -1,0 +1,169 @@
+\begin{table}
+\centering
+\begin{talltblr}[         %% tabularray outer open
+caption={Comparación de la Brecha de Ingreso Laboral por Género},
+note{}={+ p \num{< 0.1}, * p \num{< 0.05}, ** p \num{< 0.01}, *** p \num{< 0.001}},
+]                     %% tabularray outer close
+{                     %% tabularray inner open
+colspec={Q[]Q[]Q[]Q[]},
+hline{2}={1-4}{solid, black, 0.05em},
+hline{148}={1-4}{solid, black, 0.05em},
+hline{1}={1-4}{solid, black, 0.08em},
+hline{153}={1-4}{solid, black, 0.08em},
+column{2-4}={}{halign=c},
+column{1}={}{halign=l},
+}                     %% tabularray inner close
+& (1) Incondicional & (2) Preferido & (3) Bad Controls \\
+(Intercept) & \num{13.981}*** & \num{11.512}*** & \num{12.180}*** \\
+& (\num{0.009}) & (\num{0.112}) & (\num{0.112}) \\
+mujer & \num{-0.238}*** & \num{-0.320}*** & \num{-0.229}*** \\
+& (\num{0.015}) & (\num{0.012}) & (\num{0.013}) \\
+age &  & \num{0.082}*** & \num{0.066}*** \\
+&  & (\num{0.003}) & (\num{0.003}) \\
+edad\_2 &  & \num{-0.001}*** & \num{-0.001}*** \\
+&  & (\num{0.000}) & (\num{0.000}) \\
+educ3 &  & \num{0.310}** & \num{0.219}* \\
+&  & (\num{0.096}) & (\num{0.087}) \\
+educ4 &  & \num{0.382}*** & \num{0.282}** \\
+&  & (\num{0.095}) & (\num{0.086}) \\
+educ5 &  & \num{0.427}*** & \num{0.299}*** \\
+&  & (\num{0.094}) & (\num{0.085}) \\
+educ6 &  & \num{0.630}*** & \num{0.363}*** \\
+&  & (\num{0.093}) & (\num{0.085}) \\
+educ7 &  & \num{1.086}*** & \num{0.504}*** \\
+&  & (\num{0.094}) & (\num{0.086}) \\
+estrato2 &  & \num{0.074}*** & \num{0.050}** \\
+&  & (\num{0.019}) & (\num{0.017}) \\
+estrato3 &  & \num{0.195}*** & \num{0.147}*** \\
+&  & (\num{0.021}) & (\num{0.019}) \\
+estrato4 &  & \num{0.746}*** & \num{0.548}*** \\
+&  & (\num{0.035}) & (\num{0.031}) \\
+estrato5 &  & \num{1.060}*** & \num{0.842}*** \\
+&  & (\num{0.065}) & (\num{0.054}) \\
+estrato6 &  & \num{1.460}*** & \num{1.174}*** \\
+&  & (\num{0.061}) & (\num{0.055}) \\
+factor(oficio\_grupo)3 &  &  & \num{-0.495}*** \\
+&  &  & (\num{0.047}) \\
+factor(oficio\_grupo)6 &  &  & \num{0.135}+ \\
+&  &  & (\num{0.077}) \\
+factor(oficio\_grupo)7 &  &  & \num{-0.116} \\
+&  &  & (\num{0.082}) \\
+factor(oficio\_grupo)8 &  &  & \num{0.096} \\
+&  &  & (\num{0.061}) \\
+factor(oficio\_grupo)9 &  &  & \num{0.161}+ \\
+&  &  & (\num{0.088}) \\
+factor(oficio\_grupo)11 &  &  & \num{0.049} \\
+&  &  & (\num{0.058}) \\
+factor(oficio\_grupo)12 &  &  & \num{0.213}** \\
+&  &  & (\num{0.065}) \\
+factor(oficio\_grupo)13 &  &  & \num{-0.318}*** \\
+&  &  & (\num{0.050}) \\
+factor(oficio\_grupo)15 &  &  & \num{-0.082} \\
+&  &  & (\num{0.086}) \\
+factor(oficio\_grupo)16 &  &  & \num{-0.329}*** \\
+&  &  & (\num{0.073}) \\
+factor(oficio\_grupo)17 &  &  & \num{-0.437}*** \\
+&  &  & (\num{0.113}) \\
+factor(oficio\_grupo)18 &  &  & \num{-0.586}*** \\
+&  &  & (\num{0.113}) \\
+factor(oficio\_grupo)19 &  &  & \num{-0.225}*** \\
+&  &  & (\num{0.062}) \\
+factor(oficio\_grupo)21 &  &  & \num{0.083}+ \\
+&  &  & (\num{0.050}) \\
+factor(oficio\_grupo)30 &  &  & \num{-0.096} \\
+&  &  & (\num{0.064}) \\
+factor(oficio\_grupo)32 &  &  & \num{-0.474}*** \\
+&  &  & (\num{0.066}) \\
+factor(oficio\_grupo)33 &  &  & \num{-0.457}*** \\
+&  &  & (\num{0.047}) \\
+factor(oficio\_grupo)34 &  &  & \num{-0.731}*** \\
+&  &  & (\num{0.079}) \\
+factor(oficio\_grupo)36 &  &  & \num{-1.029}*** \\
+&  &  & (\num{0.087}) \\
+factor(oficio\_grupo)37 &  &  & \num{-0.812}*** \\
+&  &  & (\num{0.079}) \\
+factor(oficio\_grupo)38 &  &  & \num{-0.646}*** \\
+&  &  & (\num{0.050}) \\
+factor(oficio\_grupo)39 &  &  & \num{-0.515}*** \\
+&  &  & (\num{0.045}) \\
+factor(oficio\_grupo)41 &  &  & \num{-0.368}*** \\
+&  &  & (\num{0.055}) \\
+factor(oficio\_grupo)42 &  &  & \num{-0.273}*** \\
+&  &  & (\num{0.076}) \\
+factor(oficio\_grupo)44 &  &  & \num{-0.288}*** \\
+&  &  & (\num{0.060}) \\
+factor(oficio\_grupo)45 &  &  & \num{-0.609}*** \\
+&  &  & (\num{0.047}) \\
+factor(oficio\_grupo)51 &  &  & \num{-0.399}*** \\
+&  &  & (\num{0.082}) \\
+factor(oficio\_grupo)53 &  &  & \num{-0.667}*** \\
+&  &  & (\num{0.049}) \\
+factor(oficio\_grupo)54 &  &  & \num{-0.919}*** \\
+&  &  & (\num{0.068}) \\
+factor(oficio\_grupo)55 &  &  & \num{-0.672}*** \\
+&  &  & (\num{0.048}) \\
+factor(oficio\_grupo)57 &  &  & \num{-0.612}*** \\
+&  &  & (\num{0.067}) \\
+factor(oficio\_grupo)58 &  &  & \num{-0.515}*** \\
+&  &  & (\num{0.046}) \\
+factor(oficio\_grupo)59 &  &  & \num{-0.650}*** \\
+&  &  & (\num{0.053}) \\
+factor(oficio\_grupo)70 &  &  & \num{-0.282}*** \\
+&  &  & (\num{0.084}) \\
+factor(oficio\_grupo)77 &  &  & \num{-0.579}*** \\
+&  &  & (\num{0.067}) \\
+factor(oficio\_grupo)79 &  &  & \num{-0.686}*** \\
+&  &  & (\num{0.053}) \\
+factor(oficio\_grupo)80 &  &  & \num{-0.710}*** \\
+&  &  & (\num{0.071}) \\
+factor(oficio\_grupo)81 &  &  & \num{-0.577}*** \\
+&  &  & (\num{0.075}) \\
+factor(oficio\_grupo)83 &  &  & \num{-0.475}*** \\
+&  &  & (\num{0.067}) \\
+factor(oficio\_grupo)84 &  &  & \num{-0.445}*** \\
+&  &  & (\num{0.068}) \\
+factor(oficio\_grupo)85 &  &  & \num{-0.440}*** \\
+&  &  & (\num{0.062}) \\
+factor(oficio\_grupo)87 &  &  & \num{-0.524}*** \\
+&  &  & (\num{0.060}) \\
+factor(oficio\_grupo)90 &  &  & \num{-0.626}*** \\
+&  &  & (\num{0.063}) \\
+factor(oficio\_grupo)92 &  &  & \num{-0.501}*** \\
+&  &  & (\num{0.091}) \\
+factor(oficio\_grupo)93 &  &  & \num{-0.564}*** \\
+&  &  & (\num{0.071}) \\
+factor(oficio\_grupo)95 &  &  & \num{-0.479}*** \\
+&  &  & (\num{0.049}) \\
+factor(oficio\_grupo)97 &  &  & \num{-0.685}*** \\
+&  &  & (\num{0.050}) \\
+factor(oficio\_grupo)98 &  &  & \num{-0.372}*** \\
+&  &  & (\num{0.047}) \\
+factor(oficio\_grupo)99 &  &  & \num{-0.740}*** \\
+&  &  & (\num{0.066}) \\
+factor(oficio\_grupo)otros &  &  & \num{-0.477}*** \\
+&  &  & (\num{0.057}) \\
+tamano\_empresa2 &  &  & \num{0.212}*** \\
+&  &  & (\num{0.027}) \\
+tamano\_empresa3 &  &  & \num{0.417}*** \\
+&  &  & (\num{0.030}) \\
+tamano\_empresa4 &  &  & \num{0.563}*** \\
+&  &  & (\num{0.027}) \\
+tamano\_empresa5 &  &  & \num{0.708}*** \\
+&  &  & (\num{0.027}) \\
+factor(relab\_grupo)2 &  &  & \num{0.335}*** \\
+&  &  & (\num{0.023}) \\
+factor(relab\_grupo)3 &  &  & \num{0.330}*** \\
+&  &  & (\num{0.059}) \\
+factor(relab\_grupo)4 &  &  & \num{-0.084}*** \\
+&  &  & (\num{0.021}) \\
+factor(relab\_grupo)5 &  &  & \num{0.346}*** \\
+&  &  & (\num{0.037}) \\
+factor(relab\_grupo)9 &  &  & \num{-0.871}** \\
+&  &  & (\num{0.270}) \\
+Num.Obs. & \num{14751} & \num{14751} & \num{14751} \\
+R2 & \num{0.017} & \num{0.346} & \num{0.526} \\
+R2 Adj. & \num{0.017} & \num{0.346} & \num{0.524} \\
+RMSE & \num{0.89} & \num{0.72} & \num{0.62} \\
+Std.Errors & HC1 & HC1 & HC1 \\
+\end{talltblr}
+\end{table}
