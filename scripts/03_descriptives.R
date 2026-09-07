@@ -19,6 +19,7 @@
 # ----------------------------------------------------------------------------
 
 source(here::here("scripts", "02_cleaning.R"))
+source(here::here("scripts", "functions", "edad_pico.R"))
 
 dir_figuras <- here::here("views", "figures")
 dir.create(dir_figuras, recursive = TRUE, showWarnings = FALSE)
@@ -137,9 +138,12 @@ medias_por_edad <- muestra_analisis |>
   summarise(n = n(), media_log = mean(ingreso_log), .groups = "drop") |>
   filter(n >= 20)
 
-ajuste_edad <- lm(ingreso_log ~ age + edad_2, data = muestra_analisis)
-coef_edad   <- coef(ajuste_edad)
-edad_pico   <- -coef_edad[["age"]] / (2 * coef_edad[["edad_2"]])
+# La razon -b_age / (2 * b_edad_2) se calcula con `edad_pico()` y no a mano:
+# la formula vive en un solo archivo para que la figura descriptiva y la
+# Seccion 1 no puedan discrepar. El objeto se llama `edad_pico_ajuste` y no
+# `edad_pico` justamente para no sombrear a la funcion en el global env.
+ajuste_edad      <- lm(ingreso_log ~ age + edad_2, data = muestra_analisis)
+edad_pico_ajuste <- edad_pico(ajuste_edad)
 grilla_edad <- tibble(
   age = seq(min(medias_por_edad$age), max(medias_por_edad$age), by = 0.5)
 )
@@ -150,10 +154,11 @@ p_edad <- ggplot(medias_por_edad, aes(age, media_log)) +
   geom_point(aes(size = n), colour = "grey55", alpha = 0.65) +
   geom_line(data = grilla_edad, aes(age, ajuste), colour = "steelblue4",
             linewidth = 0.9) +
-  geom_vline(xintercept = edad_pico, linetype = "dashed",
+  geom_vline(xintercept = edad_pico_ajuste, linetype = "dashed",
              colour = "firebrick", linewidth = 0.4) +
-  annotate("text", x = edad_pico + 1.2, y = min(medias_por_edad$media_log),
-           label = sprintf("edad pico ~ %.0f", edad_pico), hjust = 0,
+  annotate("text", x = edad_pico_ajuste + 1.2,
+           y = min(medias_por_edad$media_log),
+           label = sprintf("edad pico ~ %.0f", edad_pico_ajuste), hjust = 0,
            size = 3.2, colour = "firebrick") +
   scale_size_continuous(range = c(0.8, 3.4), guide = "none") +
   labs(
@@ -322,7 +327,7 @@ message("\n--- 1. skewness of the outcome ---")
 message("  level: ", round(asimetria_nivel, 2),
         " | log: ", round(asimetria_log, 3))
 message("\n--- 2. age profile ---")
-message("  peak age from the quadratic: ", round(edad_pico, 1))
+message("  peak age from the quadratic: ", round(edad_pico_ajuste, 1))
 message("\n--- 3. unconditional gender gap ---")
 print(as.data.frame(resumen_brecha))
 message("  raw gap (log points): ", round(brecha_cruda, 4),
