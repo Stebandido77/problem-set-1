@@ -64,17 +64,17 @@ m3 <- lm(
 # 2. Descomposición Frisch-Waugh-Lovell (FWL)
 # -----------------------------------------------------------------------------
 
-res_mujer <- residuals(lm(mujer ~ age + edad_2 + educ + estrato, 
+res_mujer <- residuals(lm(mujer ~ age + edad_2 + educ + estrato,
                           data = muestra_analisis))
 res_y <- residuals(lm(ingreso_log ~ age + edad_2 + educ + estrato,
                       data = muestra_analisis))
 m2_fwl <- lm(res_y ~ res_mujer - 1)
 
 cat("--- VERIFICACIÓN TEORÍA FWL ---\n")
-cat("Coeficiente de 'mujer' en regresión múltiple (m2): ", 
+cat("Coeficiente de 'mujer' en regresión múltiple (m2): ",
     coef(m2)["mujer"], "\n")
 cat("Coeficiente de 'res_mujer' en regresión FWL:        ",
-     coef(m2_fwl)["res_mujer"], "\n\n")
+    coef(m2_fwl)["res_mujer"], "\n\n")
 
 # -----------------------------------------------------------------------------
 # 3. Errores Estándar Analíticos vs. Bootstrap
@@ -83,12 +83,13 @@ cat("Coeficiente de 'res_mujer' en regresión FWL:        ",
 boot_brecha <- function(data, indices) {
   d <- data[indices, ]
   m <- lm(ingreso_log ~ mujer + age + edad_2 + educ + estrato, data = d)
-  return(coef(m)["mujer"])
+  coef(m)["mujer"]
 }
 
 set.seed(1234)
-res_boot_brecha <- boot(data = muestra_analisis, 
-                        statistic = boot_brecha, R = 1000)
+
+res_boot_brecha <- boot(data = muestra_analisis,
+                        statistic = boot_brecha, R = 10000)
 
 se_analitico_m2 <- sqrt(diag(vcovHC(m2, type = "HC1")))["mujer"]
 se_bootstrap_m2 <- sd(res_boot_brecha$t)
@@ -107,7 +108,7 @@ modelos <- list(
   "(3) Bad Controls"  = m3
 )
 
-dir.create(here::here("views", "tables"), 
+dir.create(here::here("views", "tables"),
            showWarnings = FALSE, recursive = TRUE)
 
 msummary(
@@ -125,9 +126,8 @@ msummary(
 
 boot_edad_pico <- function(data, indices) {
   d <- data[indices, ]
-  
-  d_hombres <- dplyr::filter(d, .data$mujer == 0)
-  d_mujeres <- dplyr::filter(d, .data$mujer == 1)
+  d_hombres <- d[d$mujer == 0, ]
+  d_mujeres <- d[d$mujer == 1, ]
 
   m_h <- lm(
     ingreso_log ~ age + edad_2 + educ + estrato,
@@ -137,18 +137,19 @@ boot_edad_pico <- function(data, indices) {
     ingreso_log ~ age + edad_2 + educ + estrato,
     data = d_mujeres
   )
-  
-  pico_h <- edad_pico(m_h, "age", "edad_2")
-  pico_m <- edad_pico(m_m, "age", "edad_2")
-  
-  return(c(pico_hombres = pico_h, pico_mujeres = pico_m))
+
+  edad_pico_fn <- get("edad_pico", mode = "function")
+  pico_h <- edad_pico_fn(m_h, termino_edad = "age", termino_edad_2 = "edad_2")
+  pico_m <- edad_pico_fn(m_m, termino_edad = "age", termino_edad_2 = "edad_2")
+
+  c(pico_hombres = pico_h, pico_mujeres = pico_m)
 }
 
 set.seed(1234)
 res_boot_picos <- boot(
   data = muestra_analisis,
   statistic = boot_edad_pico,
-  R = 1000
+  R = 10000
 )
 
 ic_hombres <- boot.ci(res_boot_picos, type = "perc", index = 1)
@@ -156,11 +157,11 @@ ic_mujeres <- boot.ci(res_boot_picos, type = "perc", index = 2)
 
 cat("--- EDAD PICO E INTERVALOS DE CONFIANZA (BOOTSTRAP) ---\n")
 cat("Edad pico hombres: ", round(res_boot_picos$t0[1], 4),
-  " con IC 95%: [", round(ic_hombres$percent[4], 4), ", ",
-  round(ic_hombres$percent[5], 4), "]\n")
+    "con IC 95%: [", round(ic_hombres$percent[4], 4), ", ",
+    round(ic_hombres$percent[5], 4), "]\n")
 cat("Edad pico mujeres: ", round(res_boot_picos$t0[2], 4),
-  " con IC 95%: [", round(ic_mujeres$percent[4], 4), ", ",
-  round(ic_mujeres$percent[5], 4), "]\n\n")
+    "con IC 95%: [", round(ic_mujeres$percent[4], 4), ", ",
+    round(ic_mujeres$percent[5], 4), "]\n\n")
 
 # -----------------------------------------------------------------------------
 # 6. Gráfico de Perfiles Edad-Ingreso Predichos y Exportación (CORREGIDO)
@@ -217,13 +218,13 @@ p_edad <- ggplot(
   ) +
   theme_minimal()
 
-# Guardar la gráfica corregida
-dir.create(here::here("views", "figures"), 
+# Guardar la gráfica
+dir.create(here::here("views", "figures"),
            showWarnings = FALSE, recursive = TRUE)
 
 ggsave(
-  here::here("views", "figures", "perfil_edad_ingreso.png"), 
-  plot = p_edad, 
-  width = 8, 
+  here::here("views", "figures", "perfil_edad_ingreso.png"),
+  plot = p_edad,
+  width = 8,
   height = 5
 )
