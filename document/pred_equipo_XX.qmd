@@ -7,7 +7,33 @@ format:
     theme: metropolis
     slide-level: 2
 lang: es
+header-includes:
+  # Requisito de las tablas que exporta modelsummary (backend tinytable): sin
+  # esto el deck falla al compilar en cuanto se incluye una con \input{}.
+  - \usepackage{tabularray}
+  - \usepackage{float}
+  - \usepackage{graphicx}
+  - \usepackage[normalem]{ulem}
+  - \UseTblrLibrary{booktabs}
+  - \UseTblrLibrary{siunitx}
+  - \newcommand{\tinytableTabularrayUnderline}[1]{\underline{#1}}
+  - \newcommand{\tinytableTabularrayStrikeout}[1]{\sout{#1}}
+  - \NewTableCommand{\tinytableDefineColor}[3]{\definecolor{#1}{#2}{#3}}
 ---
+
+## Result Overview
+
+<!-- OBLIGATORIA: el hallazgo principal de la seccion, antes de la metodologia. -->
+
+## Pregunta y motivacion
+
+## Evidencia descriptiva
+
+## Especificaciones
+
+## Resultados
+
+## Conclusion
 
 <!-- NOTA DE REPRODUCCION -------------------------------------------------
 
@@ -35,17 +61,3 @@ Insumos de esta seccion:
   * views/figures/deriva_temporal.png       (por que el corte es temporal)
   * views/tables/construccion_muestra.tex   (cascada de la muestra)
 --------------------------------------------------------------------- -->
-
-## Result Overview
-
-<!-- OBLIGATORIA: el hallazgo principal de la seccion, antes de la metodologia. -->
-
-## Pregunta y motivacion
-
-## Evidencia descriptiva
-
-## Especificaciones
-
-## Resultados
-
-## Conclusion
