@@ -86,3 +86,108 @@ rmse_m2 <- rmse(
 )
 
 rmse_m2
+
+#-----------------------------------------------------------------------------
+# 4. Development of 5 additional models
+#-----------------------------------------------------------------------------
+
+mod_pred_1 <- lm(
+  ingreso_log ~ mujer + age + edad_2 + educ + estrato +
+    horas + relab_grupo,
+  data = train
+)
+
+# al baseline de la Sección 2 le agregamos horas y relab_grupo.
+# La idea es incorporar información directa del empleo: cuánto trabaja la persona
+#y qué tipo de relación laboral tiene. No agregamos nueva no linealidad; el modelo sigue
+#con age^2 como término cuadrático.
+
+mod_pred_2 <- lm(
+  ingreso_log ~ mujer + age + edad_2 + educ + estrato +
+    horas + relab_grupo +
+    antiguedad_meses + I(antiguedad_meses^2),
+  data = train
+)
+#Mantenemos lo anterior y agregamos antiguedad_meses y antiguedad_meses^2.
+#Aquí sí introducimos una nueva no linealidad: permitimos que la relación 
+#Entre antigüedad e ingreso sea curva, no necesariamente constante.
+
+
+mod_pred_3 <- lm(
+  ingreso_log ~ mujer + age + edad_2 + educ + estrato +
+    horas + relab_grupo +
+    antiguedad_meses + I(antiguedad_meses^2) +
+    tamano_empresa + formal + cuenta_propia + micro_empresa,
+  data = train
+)
+
+#Agregamos tamano_empresa, formal, cuenta_propia y micro_empresa.
+#La idea es incorporar información sobre el tipo de empresa en la que trabaja la persona.
+
+mod_pred_4 <- lm(
+  ingreso_log ~ mujer + age + edad_2 + educ + estrato +
+    horas + relab_grupo +
+    antiguedad_meses + I(antiguedad_meses^2) +
+    tamano_empresa + formal + cuenta_propia + micro_empresa +
+    oficio_grupo,
+  data = train
+)
+# Agregamos oficio_grupo. Como es una variable categórica, R crea varias dummies. 
+#  Esto   permite capturar diferencias salariales entre ocupaciones. 
+#Puede aumentar bastante la complejidad del modelo aunque visualmente agreguemos una sola variable.
+
+mod_pred_5 <- lm(
+  ingreso_log ~ mujer + age + edad_2 + educ + estrato +
+    horas + relab_grupo +
+    antiguedad_meses + I(antiguedad_meses^2) +
+    tamano_empresa + formal + cuenta_propia + micro_empresa +
+    oficio_grupo +
+    mujer:educ + age:educ,
+  data = train
+)
+
+#Agregamos interacciones como mujer:educ y age:educ. 
+#Aquí el cambio no es “más variables” solamente, sino permitir que la relación de una variable con 
+#El ingreso dependa de otra. Por ejemplo, que la relación entre educación e ingreso sea distinta entre hombres y mujeres.
+
+# -----------------------------------------------------------------------------
+# 5 VALIDATION PREDICTIONS
+# -----------------------------------------------------------------------------
+
+pred_mod_1 <- predict(mod_pred_1, newdata = validation)
+pred_mod_2 <- predict(mod_pred_2, newdata = validation)
+pred_mod_3 <- predict(mod_pred_3, newdata = validation)
+pred_mod_4 <- predict(mod_pred_4, newdata = validation)
+pred_mod_5 <- predict(mod_pred_5, newdata = validation)
+
+
+# -----------------------------------------------------------------------------
+# 6.VALIDATION RMSE
+# -----------------------------------------------------------------------------
+
+rmse_mod_1 <- rmse(validation$ingreso_log, pred_mod_1)
+rmse_mod_2 <- rmse(validation$ingreso_log, pred_mod_2)
+rmse_mod_3 <- rmse(validation$ingreso_log, pred_mod_3)
+rmse_mod_4 <- rmse(validation$ingreso_log, pred_mod_4)
+rmse_mod_5 <- rmse(validation$ingreso_log, pred_mod_5)
+
+rmse_mod_1
+rmse_mod_2
+rmse_mod_3
+rmse_mod_4
+rmse_mod_5
+
+# Resultados de RMSE ordenados de menos a mayor.
+
+ rmse_validation = c(
+    rmse_m2,
+    rmse_mod_1,
+    rmse_mod_2,
+    rmse_mod_3,
+    rmse_mod_4,
+    rmse_mod_5
+  )
+) |>
+  dplyr::arrange(rmse_validation)
+
+resultados_rmse
