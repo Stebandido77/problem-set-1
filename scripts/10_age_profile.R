@@ -238,7 +238,164 @@ p_comparacion <- ggplot(comparacion,
   theme(legend.position = "top")
 guardar_fig(p_comparacion, "perfiles_edad_comparacion.png")
 
-# 4. Resumen en consola -------------------------------------------------------
+# 4. Intervalo de confianza bootstrap de la edad pico -------------------------
+# QUE SE REMUESTREA Y QUE NO
+# Se remuestrean FILAS de la muestra con reemplazo; en cada replica se vuelve a
+# ajustar el modelo COMPLETO y se recalcula la razon -b_age / (2 * b_edad_2)
+# sobre los coeficientes DE ESA REPLICA. El intervalo son los percentiles 2,5 y
+# 97,5 de las 1.000 razones resultantes.
+#
+# Lo que NO se hace, y es el error que este diseno evita: construir el
+# intervalo a partir de los errores estandar de b_age y b_edad_2 por separado,
+# o linealizar la razon con metodo delta. La edad pico es un estadistico NO
+# LINEAL de dos coeficientes correlacionados; el argumento completo esta en
+# `scripts/functions/edad_pico.R`.
+#
+# Las dos especificaciones tienen su propio bootstrap. El condicional NO
+# reutiliza las replicas del incondicional: cada replica reajusta
+# `ingreso_log ~ age + edad_2 + horas + relab_grupo` entera, porque los
+# controles cambian las estimaciones de b_age y b_edad_2 y por lo tanto tambien
+# la distribucion muestral de su razon.
+b_replicas <- 1000
+
+#' Fabricar el estadistico de `boot()` para una especificacion dada
+#'
+#' Devuelve una funcion con la firma que espera `boot::boot()`. Se usa una
+#' fabrica y no dos funciones casi iguales para que quede escrito UNA sola vez
+#' que cada replica reajusta el modelo completo antes de recalcular la razon.
+#'
+#' @param formula La formula de la especificacion a reajustar en cada replica.
+#' @return Funcion `(datos, indices) -> edad pico de esa replica`.
+#' @examples
+#' # estadistico <- estadistico_edad_pico(ingreso_log ~ age + edad_2)
+#' # estadistico(muestra_analisis, seq_len(nrow(muestra_analisis)))
+estadistico_edad_pico <- function(formula) {
+  function(datos, indices) {
+    edad_pico(lm(formula, data = datos[indices, , drop = FALSE]))
+  }
+}
+
+# La semilla se re-fija inmediatamente antes de cada `boot()` y no solo en
+# `00_packages.R`: asi el intervalo es el mismo corriendo este script suelto o
+# desde `99_run_all.R`, donde `01_`, `02_` y `03_` ya consumieron el generador.
+set.seed(1234)
+boot_pico_incondicional <- boot(
+  data      = muestra_analisis,
+  statistic = estadistico_edad_pico(formula(perfil_incondicional)),
+  R         = b_replicas
+)
+
+set.seed(1234)
+boot_pico_condicional <- boot(
+  data      = muestra_analisis,
+  statistic = estadistico_edad_pico(formula(perfil_condicional)),
+  R         = b_replicas
+)
+
+# Una replica puede quedarse sin algun nivel raro de `relab_grupo`. Eso no
+# afecta a la razon (que solo usa `age` y `edad_2`), pero si apareciera un NA
+# el intervalo se calcularia sobre menos replicas de las declaradas y hay que
+# enterarse.
+stopifnot(!anyNA(boot_pico_incondicional$t),
+          !anyNA(boot_pico_condicional$t))
+
+ic_incondicional <- boot.ci(boot_pico_incondicional, type = "perc")$percent[4:5]
+ic_condicional   <- boot.ci(boot_pico_condicional, type = "perc")$percent[4:5]
+
+# 5. Tabla de regresion -------------------------------------------------------
+# Compara las dos especificaciones y agrega las tres filas que el enunciado
+# pide y que `lm()` no produce: edad pico, su intervalo bootstrap y el ajuste
+# in-sample.
+
+#' Formatear un intervalo como "[a; b]" en convencion espanola
+#'
+#' @param ic Vector de dos elementos (limite inferior y superior).
+#' @param digitos Decimales.
+#' @return Cadena lista para una celda de la tabla.
+#' @examples
+#' # formatear_ic(c(39.7, 41.6), 2)  # "[39,70; 41,60]"
+formatear_ic <- function(ic, digitos = 2) {
+  sprintf("[%s; %s]", num_es(ic[[1]], digitos), num_es(ic[[2]], digitos))
+}
+
+modelos_age <- list(
+  "(1) Incondicional" = perfil_incondicional,
+  "(2) Condicional"   = perfil_condicional
+)
+
+# `relab_grupo` entra con nueve dummies que no aportan nada a la lectura de la
+# tabla: se omiten del cuerpo y se declaran en una fila propia.
+filas_extra <- tibble::tribble(
+  ~term,                        ~`(1) Incondicional`,              ~`(2) Condicional`,
+  "Dummies de posicion ocup.",  "No",                              "Si",
+  "Edad pico (anos)",           num_es(pico_incondicional, 2),     num_es(pico_condicional, 2),
+  "IC 95% bootstrap (percentil)", formatear_ic(ic_incondicional),  formatear_ic(ic_condicional)
+)
+attr(filas_extra, "position") <- 7:9
+
+nota_r2 <- paste(
+  "Notas: GEIH 2018, Bogota. Muestra completa de analisis (N = 14.751",
+  "ocupados de 18 anos o mas), no la particion de entrenamiento. La",
+  "especificacion (2) controla por horas trabajadas (totalHoursWorked) y",
+  "posicion ocupacional (relab), y por ningun otro regresor. relab_grupo es",
+  "relab con el nivel 8 (jornalero, una sola observacion de entrenamiento)",
+  "plegado en el 9. La edad pico es -b_age / (2 b_edad2); su intervalo es",
+  "bootstrap por percentiles con 1.000 replicas, remuestreando filas y",
+  "reajustando el modelo completo en cada replica (semilla 1234). ADVERTENCIA",
+  "SOBRE EL R2: el de la columna (2) es mayor por construccion, porque agrega",
+  "regresores a la misma variable dependiente; la subida NO es evidencia de",
+  "que (2) este mejor especificada. Las dos columnas estiman objetos",
+  "distintos y no compiten."
+)
+
+# `edad_2` es del orden de -0,001 y su error estandar de 3,8e-05: con los 3
+# decimales por defecto la tabla imprimiria "-0.001" y "(0.000)", que no dicen
+# nada. Con 5 decimales fijos los cuatro coeficientes quedan legibles en la
+# misma escala y sin notacion cientifica, que en una lamina de beamer se lee
+# peor que un cero de mas.
+# El formato numerico va en "plain" para que la tabla no dependa de siunitx en
+# el preambulo del deck.
+options(modelsummary_format_numeric_latex = "plain")
+
+modelsummary(
+  modelos_age,
+  output    = file.path(dir_tablas, "perfiles_edad.tex"),
+  fmt       = "%.5f",
+  title     = paste("Perfil edad-ingreso: especificacion incondicional y",
+                    "condicional"),
+  coef_map  = c("age"         = "Edad",
+                "edad_2"      = "Edad al cuadrado",
+                "horas"       = "Horas trabajadas (semana)",
+                "(Intercept)" = "Constante"),
+  gof_map   = c("nobs", "r.squared"),
+  add_rows  = filas_extra,
+  stars     = c("*" = 0.1, "**" = 0.05, "***" = 0.01),
+  notes     = nota_r2
+)
+
+# Cifras sueltas para el deck. El .qmd no calcula nada, pero la lamina de
+# Result Overview necesita el pico y su intervalo en el texto. Se exportan como
+# macros de LaTeX para que las slides las INTERPOLEN en vez de teclearlas: una
+# cifra escrita a mano sobrevive a un cambio de muestra sin avisar.
+macros <- c(
+  sprintf("\\newcommand{\\PicoIncond}{%s}",   num_es(pico_incondicional, 1)),
+  sprintf("\\newcommand{\\PicoCond}{%s}",     num_es(pico_condicional, 1)),
+  sprintf("\\newcommand{\\ICIncond}{%s}",     formatear_ic(ic_incondicional, 1)),
+  sprintf("\\newcommand{\\ICCond}{%s}",       formatear_ic(ic_condicional, 1)),
+  sprintf("\\newcommand{\\RangoEdad}{%d a %d}", rango_edad[[1]], rango_edad[[2]]),
+  sprintf("\\newcommand{\\NMuestra}{%s}",
+          formatC(nrow(muestra_analisis), format = "d", big.mark = ".",
+                  decimal.mark = ",")),
+  sprintf("\\newcommand{\\RCuadIncond}{%s}",
+          num_es(summary(perfil_incondicional)$r.squared, 3)),
+  sprintf("\\newcommand{\\RCuadCond}{%s}",
+          num_es(summary(perfil_condicional)$r.squared, 3)),
+  sprintf("\\newcommand{\\DesplazaPico}{%s}",
+          num_es(pico_condicional - pico_incondicional, 1))
+)
+writeLines(macros, file.path(dir_tablas, "cifras_age.tex"))
+
+# 6. Resumen en consola -------------------------------------------------------
 # Los mensajes del pipeline quedan en ingles a proposito: son log, no
 # documentacion. De aqui salen los numeros que se citan en el deck, asi que no
 # se transcriben a mano a ningun lado.
@@ -254,12 +411,19 @@ message("  conditional  : b = ", signif(cuadratico_condicional$estimacion, 4),
         " | t = ", round(cuadratico_condicional$t, 2),
         " | p = ", format.pval(cuadratico_condicional$p, digits = 3))
 
-message("\n--- 3. peak age ---")
+message("\n--- 3. peak age, with percentile bootstrap CI (B = ", b_replicas,
+        ") ---")
 message("  unconditional: ", round(pico_incondicional, 2),
+        " | 95% CI [", round(ic_incondicional[[1]], 2), ", ",
+        round(ic_incondicional[[2]], 2), "]",
         " | inside observed range: ", dentro_incondicional)
 message("  conditional  : ", round(pico_condicional, 2),
+        " | 95% CI [", round(ic_condicional[[1]], 2), ", ",
+        round(ic_condicional[[2]], 2), "]",
         " | inside observed range: ", dentro_condicional)
+message("  shift when conditioning: ",
+        round(pico_condicional - pico_incondicional, 2), " years")
 
-message("\n--- 4. in-sample fit (R2) ---")
+message("\n--- 4. in-sample fit (R2; (2) is higher BY CONSTRUCTION) ---")
 message("  unconditional: ", round(summary(perfil_incondicional)$r.squared, 4))
 message("  conditional  : ", round(summary(perfil_condicional)$r.squared, 4))
