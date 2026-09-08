@@ -25,6 +25,9 @@ stores/raw/*
 # --- Quarto / LaTeX ----------------------------------------------------------
 /.quarto/
 *_files/
+# Los decks renderizados son artefactos: se regeneran con `quarto render` y
+# versionarlos solo produce conflictos binarios cuando dos personas rinden.
+document/*.pdf
 *.aux
 *.log
 *.out
