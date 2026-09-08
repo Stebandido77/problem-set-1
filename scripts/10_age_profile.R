@@ -355,7 +355,12 @@ nota_r2 <- paste(
 # peor que un cero de mas.
 # El formato numerico va en "plain" para que la tabla no dependa de siunitx en
 # el preambulo del deck.
-options(modelsummary_format_numeric_latex = "plain")
+#
+# La opcion se GUARDA Y SE RESTAURA alrededor de la llamada. `options()` es
+# global y `99_run_all.R` corre este script antes que `20_gender_gap.R`:
+# dejarla puesta reformatea la tabla de la Seccion 2, que es de otra persona y
+# no pidio ese cambio. Ya paso una vez.
+opciones_previas <- options(modelsummary_format_numeric_latex = "plain")
 
 modelsummary(
   modelos_age,
@@ -372,6 +377,8 @@ modelsummary(
   stars     = c("*" = 0.1, "**" = 0.05, "***" = 0.01),
   notes     = nota_r2
 )
+
+options(opciones_previas)
 
 # Cifras sueltas para el deck. El .qmd no calcula nada, pero la lamina de
 # Result Overview necesita el pico y su intervalo en el texto. Se exportan como
