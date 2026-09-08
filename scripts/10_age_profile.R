@@ -180,7 +180,8 @@ p_condicional <- ggplot(perfil_cond_pred, aes(age, ajuste)) +
            hjust = 0, size = 3.2, colour = "firebrick") +
   labs(
     x = "Edad", y = "log(ingreso laboral mensual) predicho",
-    title = "Perfil condicional: el precio del trabajo a horas y posicion fijas",
+    title = paste("Perfil condicional: el precio del trabajo a horas y",
+                  "posicion fijas"),
     subtitle = sprintf(paste(
       "Control por horas trabajadas y posicion ocupacional, y ningun otro.",
       "Evaluado en horas = %s h/semana\n(la media muestral) y posicion",
@@ -325,27 +326,26 @@ modelos_age <- list(
 
 # `relab_grupo` entra con nueve dummies que no aportan nada a la lectura de la
 # tabla: se omiten del cuerpo y se declaran en una fila propia.
-filas_extra <- tibble::tribble(
-  ~term,                        ~`(1) Incondicional`,              ~`(2) Condicional`,
-  "Dummies de posicion ocup.",  "No",                              "Si",
-  "Edad pico (anos)",           num_es(pico_incondicional, 2),     num_es(pico_condicional, 2),
-  "IC 95% bootstrap (percentil)", formatear_ic(ic_incondicional),  formatear_ic(ic_condicional)
+filas_extra <- tibble::tibble(
+  term = c("Dummies de posicion ocup.",
+           "Edad pico (anos)",
+           "IC 95% bootstrap (percentil)"),
+  `(1) Incondicional` = c("No",
+                          num_es(pico_incondicional, 2),
+                          formatear_ic(ic_incondicional)),
+  `(2) Condicional`   = c("Si",
+                          num_es(pico_condicional, 2),
+                          formatear_ic(ic_condicional))
 )
 attr(filas_extra, "position") <- 7:9
 
+# La nota se mantiene corta a proposito: la tabla va en una lamina de beamer y
+# una nota larga la desborda. La justificacion metodologica completa esta en el
+# encabezado de este archivo y en las laminas siguientes del deck.
 nota_r2 <- paste(
-  "Notas: GEIH 2018, Bogota. Muestra completa de analisis (N = 14.751",
-  "ocupados de 18 anos o mas), no la particion de entrenamiento. La",
-  "especificacion (2) controla por horas trabajadas (totalHoursWorked) y",
-  "posicion ocupacional (relab), y por ningun otro regresor. relab_grupo es",
-  "relab con el nivel 8 (jornalero, una sola observacion de entrenamiento)",
-  "plegado en el 9. La edad pico es -b_age / (2 b_edad2); su intervalo es",
-  "bootstrap por percentiles con 1.000 replicas, remuestreando filas y",
-  "reajustando el modelo completo en cada replica (semilla 1234). ADVERTENCIA",
-  "SOBRE EL R2: el de la columna (2) es mayor por construccion, porque agrega",
-  "regresores a la misma variable dependiente; la subida NO es evidencia de",
-  "que (2) este mejor especificada. Las dos columnas estiman objetos",
-  "distintos y no compiten."
+  "Notas: GEIH 2018, Bogota. Muestra completa de analisis; constante estimada",
+  "y omitida. IC de la edad pico: bootstrap percentil, 1.000 replicas,",
+  "semilla 1234. El R2 de (2) sube por construccion."
 )
 
 # `edad_2` es del orden de -0,001 y su error estandar de 3,8e-05: con los 3
@@ -368,10 +368,11 @@ modelsummary(
   fmt       = "%.5f",
   title     = paste("Perfil edad-ingreso: especificacion incondicional y",
                     "condicional"),
-  coef_map  = c("age"         = "Edad",
-                "edad_2"      = "Edad al cuadrado",
-                "horas"       = "Horas trabajadas (semana)",
-                "(Intercept)" = "Constante"),
+  # La constante se estima pero no se muestra: en una lamina de beamer sus dos
+  # filas desplazan al R2 fuera del borde y no aporta nada a la lectura.
+  coef_map  = c("age"    = "Edad",
+                "edad_2" = "Edad al cuadrado",
+                "horas"  = "Horas trabajadas (semana)"),
   gof_map   = c("nobs", "r.squared"),
   add_rows  = filas_extra,
   stars     = c("*" = 0.1, "**" = 0.05, "***" = 0.01),
@@ -380,16 +381,43 @@ modelsummary(
 
 options(opciones_previas)
 
-# Cifras sueltas para el deck. El .qmd no calcula nada, pero la lamina de
-# Result Overview necesita el pico y su intervalo en el texto. Se exportan como
-# macros de LaTeX para que las slides las INTERPOLEN en vez de teclearlas: una
-# cifra escrita a mano sobrevive a un cambio de muestra sin avisar.
+# 6. Cifras sueltas para el deck ----------------------------------------------
+# El .qmd no calcula nada, pero sus laminas necesitan cifras en el texto
+# corrido. Se exportan como macros de LaTeX para que las slides las INTERPOLEN
+# en vez de teclearlas: una cifra escrita a mano sobrevive a un cambio de
+# muestra sin avisar.
+
+# Las horas medias por tramo de edad son la evidencia de que el canal de oferta
+# laboral existe: si las horas no cayeran con la edad, condicionar en ellas no
+# podria mover el pico. Van al deck como cifras, no como afirmacion cualitativa.
+horas_por_tramo <- muestra_analisis |>
+  mutate(tramo = cut(age, breaks = c(17, 45, 65, Inf),
+                     labels = c("18-45", "46-65", "66+"))) |>
+  group_by(tramo) |>
+  summarise(horas_medias = mean(horas), .groups = "drop")
+
+horas_jovenes <- horas_por_tramo$horas_medias[horas_por_tramo$tramo == "18-45"]
+horas_mayores <- horas_por_tramo$horas_medias[horas_por_tramo$tramo == "66+"]
+
+# La limitacion que se reporta en la conclusion del deck (cuantos ocupados se
+# pierden por no tener ingreso observado) se lee de la cascada que viaja pegada
+# a la muestra, no de un numero recordado de otro archivo.
+cascada_muestra <- attr(muestra_analisis, "cascada")
+fila_ingreso <- cascada_muestra[
+  cascada_muestra$paso == "Ingreso laboral observado", ]
+
 macros <- c(
   sprintf("\\newcommand{\\PicoIncond}{%s}",   num_es(pico_incondicional, 1)),
+  sprintf("\\newcommand{\\HorasJovenes}{%s}", num_es(horas_jovenes, 1)),
+  sprintf("\\newcommand{\\HorasMayores}{%s}", num_es(horas_mayores, 1)),
+  sprintf("\\newcommand{\\CoefHoras}{%s}",
+          num_es(coef(perfil_condicional)[["horas"]], 4)),
   sprintf("\\newcommand{\\PicoCond}{%s}",     num_es(pico_condicional, 1)),
-  sprintf("\\newcommand{\\ICIncond}{%s}",     formatear_ic(ic_incondicional, 1)),
+  sprintf("\\newcommand{\\ICIncond}{%s}",
+          formatear_ic(ic_incondicional, 1)),
   sprintf("\\newcommand{\\ICCond}{%s}",       formatear_ic(ic_condicional, 1)),
-  sprintf("\\newcommand{\\RangoEdad}{%d a %d}", rango_edad[[1]], rango_edad[[2]]),
+  sprintf("\\newcommand{\\RangoEdad}{%d a %d}",
+          rango_edad[[1]], rango_edad[[2]]),
   sprintf("\\newcommand{\\NMuestra}{%s}",
           formatC(nrow(muestra_analisis), format = "d", big.mark = ".",
                   decimal.mark = ",")),
@@ -398,11 +426,23 @@ macros <- c(
   sprintf("\\newcommand{\\RCuadCond}{%s}",
           num_es(summary(perfil_condicional)$r.squared, 3)),
   sprintf("\\newcommand{\\DesplazaPico}{%s}",
-          num_es(pico_condicional - pico_incondicional, 1))
+          num_es(pico_condicional - pico_incondicional, 1)),
+  # Los t del termino cuadratico: son la evidencia de la concavidad y el deck
+  # los cita, asi que tampoco se teclean alla.
+  sprintf("\\newcommand{\\TIncond}{%s}",
+          num_es(cuadratico_incondicional$t, 1)),
+  sprintf("\\newcommand{\\TCond}{%s}",    num_es(cuadratico_condicional$t, 1)),
+  # La limitacion de la muestra que se reporta en la conclusion sale de la
+  # cascada de `02_cleaning.R`, no de un numero recordado.
+  sprintf("\\newcommand{\\ExcluidasIngreso}{%s}",
+          formatC(fila_ingreso$excluidas, format = "d", big.mark = ".",
+                  decimal.mark = ",")),
+  sprintf("\\newcommand{\\PctExcluidasIngreso}{%s}",
+          num_es(fila_ingreso$pct_previo, 2))
 )
 writeLines(macros, file.path(dir_tablas, "cifras_age.tex"))
 
-# 6. Resumen en consola -------------------------------------------------------
+# 7. Resumen en consola -------------------------------------------------------
 # Los mensajes del pipeline quedan en ingles a proposito: son log, no
 # documentacion. De aqui salen los numeros que se citan en el deck, asi que no
 # se transcriben a mano a ningun lado.
