@@ -1,7 +1,7 @@
 ---
-title: "Seccion 1: Perfil Edad-Ingreso Laboral"
+title: "Sección 1: Perfil Edad-Ingreso Laboral"
 subtitle: "Problem Set 1 — MECA 4107 — Equipo 06"
-author: "Neislen Garcia | Diego Felipe Rodríguez | Esteban Labastidas"
+author: "Neislen García | Diego Felipe Rodríguez | Esteban Labastidas"
 format:
   beamer:
     theme: metropolis
@@ -18,53 +18,53 @@ header-includes:
   - \newcommand{\tinytableTabularrayStrikeout}[1]{\sout{#1}}
   - \NewTableCommand{\tinytableDefineColor}[3]{\definecolor{#1}{#2}{#3}}
   # Las cifras del texto entran como macros desde el pipeline: ninguna se
-  # teclea en estas laminas. Las escribe scripts/10_age_profile.R.
+  # teclea en estas láminas. Las escribe scripts/10_age_profile.R.
   - \input{../views/tables/cifras_age.tex}
 ---
 
 ## Result Overview
 
-\textbf{El ingreso laboral mensual alcanza su maximo a los \PicoIncond\ anos}
+\textbf{El ingreso laboral mensual alcanza su máximo a los \PicoIncond\ años}
 (IC 95\% bootstrap: \ICIncond).
 
-Controlando por horas trabajadas y posicion ocupacional, el maximo se corre a
-los \textbf{\PicoCond\ anos} (IC 95\%: \ICCond).
+Controlando por horas trabajadas y posición ocupacional, el máximo se corre a
+los \textbf{\PicoCond\ años} (IC 95\%: \ICCond).
 
 - Las dos edades pico caen **dentro** del rango de edad observado
-  (\RangoEdad\ anos): son interpolacion, no extrapolacion.
+  (\RangoEdad\ años): son interpolación, no extrapolación.
 - Los dos intervalos **no se solapan**. El desplazamiento de \DesplazaPico\
-  anos no es ruido muestral.
-- Ese desplazamiento es el hallazgo de la seccion: al fijar las horas
-  desaparece la parte del descenso que venia de trabajar menos, no de valer
+  años no es ruido muestral.
+- Ese desplazamiento es el hallazgo de la sección: al fijar las horas
+  desaparece la parte del descenso que venía de trabajar menos, no de valer
   menos por hora.
 
 \vfill
-\footnotesize GEIH 2018, Bogota. N = \NMuestra\ ocupados de 18 anos o mas.
+\footnotesize GEIH 2018, Bogotá. N = \NMuestra\ ocupados de 18 años o más.
 
-## Pregunta y motivacion
+## Pregunta y motivación
 
-**¿Como varia el ingreso laboral a lo largo del ciclo de vida, y a que edad
-llega a su maximo?**
+**¿Cómo varía el ingreso laboral a lo largo del ciclo de vida, y a qué edad
+llega a su máximo?**
 
-La teoria de capital humano (Mincer) predice un perfil **concavo**:
+La teoría de capital humano (Mincer) predice un perfil **cóncavo**:
 
-- Al principio la inversion en capital humano es alta y el ingreso observado
+- Al principio la inversión en capital humano es alta y el ingreso observado
   bajo: se sacrifica salario presente por productividad futura.
-- Esa inversion rinde durante decadas y el ingreso sube.
-- El horizonte para amortizarla se acorta, la inversion nueva cae y la
-  depreciacion pasa a dominar: el perfil se aplana y despues baja.
+- Esa inversión rinde durante décadas y el ingreso sube.
+- El horizonte para amortizarla se acorta, la inversión nueva cae y la
+  depreciación pasa a dominar: el perfil se aplana y después baja.
 
-El maximo esta donde el retorno marginal de la experiencia iguala a la
-depreciacion. Para una autoridad tributaria no es un dato de curiosidad:
-define contra que perfil comparar un ingreso reportado.
+El máximo está donde el retorno marginal de la experiencia iguala a la
+depreciación. Para una autoridad tributaria no es un dato de curiosidad:
+define contra qué perfil comparar un ingreso reportado.
 
-## Evidencia descriptiva: el perfil es concavo
+## Evidencia descriptiva: el perfil es cóncavo
 
 ![](../views/figures/ingreso_por_edad.png){width=88%}
 
-\footnotesize La concavidad es una **prediccion contrastable**, no un supuesto:
-si el cuadratico fuera positivo o indistinguible de cero, la edad pico seria un
-minimo o puro ruido. Sale negativo y muy significativo en las dos
+\footnotesize La concavidad es una **predicción contrastable**, no un supuesto:
+si el cuadrático fuera positivo o indistinguible de cero, la edad pico sería un
+mínimo o puro ruido. Sale negativo y muy significativo en las dos
 especificaciones (t = \TIncond\ y t = \TCond).
 
 ## Especificaciones
@@ -76,39 +76,39 @@ $$\log(w_i) = \beta_1 + \beta_2\,\text{age}_i + \beta_3\,\text{age}_i^2 + u_i$$
 $$\log(w_i) = \beta_1 + \beta_2\,\text{age}_i + \beta_3\,\text{age}_i^2 +
 \gamma\,\text{totalHoursWorked}_i + \delta'\text{relab}_i + u_i$$
 
-Y **ningun otro control**: el enunciado lo fija asi, y un regresor de mas no
-seria una mejora sino otra especificacion.
+Y **ningún otro control**: el enunciado lo fija así, y un regresor de más no
+sería una mejora sino otra especificación.
 
 **Edad pico** $= -\beta_2 / (2\beta_3)$, evaluada en las dos.
 
 \footnotesize
 Las dos se estiman sobre la muestra **completa** (\NMuestra), no sobre el fold
-de entrenamiento: la Seccion 1 describe un perfil poblacional. `relab` entra
-como `relab_grupo`, que pliega el nivel 8 (una sola observacion) en el 9.
+de entrenamiento: la Sección 1 describe un perfil poblacional. `relab` entra
+como `relab_grupo`, que pliega el nivel 8 (una sola observación) en el 9.
 
 ## El intervalo de la edad pico va por bootstrap
 
-La edad pico **no es un coeficiente**: es la razon $-\beta_2 / (2\beta_3)$, una
-funcion no lineal de dos coeficientes correlacionados.
+La edad pico **no es un coeficiente**: es la razón $-\beta_2 / (2\beta_3)$, una
+función no lineal de dos coeficientes correlacionados.
 
-- `lm()` no reporta el error estandar de una razon.
-- El **metodo delta** linealiza alrededor de las estimaciones y se degrada a
-  medida que el denominador $2\beta_3$ se acerca a cero. Aqui $\beta_3$ es
-  pequeno y negativo: la razon tiene cola pesada y el intervalo delta quedaria
+- `lm()` no reporta el error estándar de una razón.
+- El **método delta** linealiza alrededor de las estimaciones y se degrada a
+  medida que el denominador $2\beta_3$ se acerca a cero. Aquí $\beta_3$ es
+  pequeño y negativo: la razón tiene cola pesada y el intervalo delta quedaría
   demasiado angosto.
-- La distribucion muestral de una razon **no es simetrica**. El delta impone
-  esa simetria por construccion; el bootstrap no.
+- La distribución muestral de una razón **no es simétrica**. El delta impone
+  esa simetría por construcción; el bootstrap no.
 
-**Procedimiento**: 1.000 replicas; en cada una se remuestrean filas con
-reemplazo, se **reajusta el modelo completo** y se recalcula la razon con los
-coeficientes de esa replica. Percentiles 2,5 y 97,5; semilla 1234. Cada
-especificacion tiene su propio bootstrap.
+**Procedimiento**: 1.000 réplicas; en cada una se remuestrean filas con
+reemplazo, se **reajusta el modelo completo** y se recalcula la razón con los
+coeficientes de esa réplica. Percentiles 2,5 y 97,5; semilla 1234. Cada
+especificación tiene su propio bootstrap.
 
 ## Resultados
 
-<!-- La tabla es un flotante: no se puede partir entre laminas, asi que su
-     nota tiene que caber. La nota del .tex se mantiene en dos lineas y el
-     desarrollo metodologico va en las laminas siguientes. -->
+<!-- La tabla es un flotante: no se puede partir entre láminas, así que su
+     nota tiene que caber. La nota del .tex se mantiene en dos líneas y el
+     desarrollo metodológico va en las láminas siguientes. -->
 
 \scriptsize
 \input{../views/tables/perfiles_edad.tex}
@@ -117,8 +117,8 @@ especificacion tiene su propio bootstrap.
 
 ![](../views/figures/perfiles_edad_comparacion.png)
 
-\footnotesize Cada curva esta centrada en su propio promedio: entre
-especificaciones el nivel no es comparable, la forma y la posicion del pico si.
+\footnotesize Cada curva está centrada en su propio promedio: entre
+especificaciones el nivel no es comparable, la forma y la posición del pico si.
 
 ## El perfil condicional
 
@@ -127,63 +127,63 @@ especificaciones el nivel no es comparable, la forma y la posicion del pico si.
 ## Condicionar en horas no mejora el perfil: cambia la pregunta
 
 `totalHoursWorked` es un **bad control** para esta pregunta. Las horas no son
-una caracteristica predeterminada de la persona: son una decision que responde
+una característica predeterminada de la persona: son una decisión que responde
 a la edad. Condicionar en ellas **cierra uno de los canales** por los que la
-edad afecta al ingreso mensual, en vez de aislar un efecto mas limpio.
+edad afecta al ingreso mensual, en vez de aislar un efecto más limpio.
 
 Las dos columnas estiman **objetos distintos**:
 
 - **(1)** el perfil del *ingreso laboral mensual observado*: lo que una persona
   efectivamente gana en el mes, que incorpora tanto el precio de su hora como
-  cuantas horas trabaja y en que posicion.
-- **(2)** el perfil del *precio del trabajo a horas y posicion fijas*: cuanto
+  cuántas horas trabaja y en qué posición.
+- **(2)** el perfil del *precio del trabajo a horas y posición fijas*: cuánto
   cambia el ingreso con la edad **entre** personas que trabajan lo mismo.
 
-La (2) no es la version corregida de la (1): responde otra pregunta.
+La (2) no es la versión corregida de la (1): responde otra pregunta.
 
-## Por que el pico se corre hacia adelante
+## Por qué el pico se corre hacia adelante
 
-El pico pasa de \PicoIncond\ a \PicoCond\ anos: \textbf{se retrasa \DesplazaPico\ anos} al fijar horas y posicion. La direccion es la que predice el mecanismo:
+El pico pasa de \PicoIncond\ a \PicoCond\ años: \textbf{se retrasa \DesplazaPico\ años} al fijar horas y posición. La dirección es la que predice el mecanismo:
 
 - Las horas **caen con la edad**: \HorasJovenes\ h/semana entre los 18 y los
-  45 anos, \HorasMayores\ h/semana de los 66 en adelante.
+  45 años, \HorasMayores\ h/semana de los 66 en adelante.
 - Cada hora semanal adicional vale \CoefHoras\ log points de ingreso mensual.
-- Parte del descenso observado despues de los 40 no es una caida del
+- Parte del descenso observado después de los 40 no es una caida del
   **precio** del trabajo: es gente trabajando **menos horas**.
 
 Al fijar las horas ese componente sale del perfil. **La (1) hace ver el
 declive antes de lo que le corresponde al salario**, porque le suma la
-reduccion de la oferta laboral.
+reducción de la oferta laboral.
 
 ## Advertencia sobre el ajuste in-sample
 
 $R^2$: \RCuadIncond\ en (1) y \RCuadCond\ en (2).
 
-**Esa subida no es evidencia de que (2) este mejor especificada.** El $R^2$ no
+**Esa subida no es evidencia de que (2) esté mejor especificada.** El $R^2$ no
 puede bajar al agregar regresores a la misma variable dependiente: sube por
-construccion. Que las horas trabajadas expliquen varianza del ingreso mensual
-era de esperarse y no valida la eleccion de controles.
+construcción. Que las horas trabajadas expliquen varianza del ingreso mensual
+era de esperarse y no valida la elección de controles.
 
-Las dos especificaciones **no compiten**: responden preguntas distintas, y cual
+Las dos especificaciones **no compiten**: responden preguntas distintas, y cuál
 interesa depende de si se quiere el perfil del ingreso observado o el del
 precio del trabajo.
 
-## Conclusion
+## Conclusión
 
-1. El perfil edad-ingreso es **concavo**, como predice la teoria de capital
-   humano: el termino cuadratico es negativo y muy significativo en las dos
+1. El perfil edad-ingreso es **cóncavo**, como predice la teoría de capital
+   humano: el termino cuadrático es negativo y muy significativo en las dos
    especificaciones.
-2. El ingreso laboral mensual llega a su maximo a los \textbf{\PicoIncond\ anos}
+2. El ingreso laboral mensual llega a su máximo a los \textbf{\PicoIncond\ años}
    (IC 95\%: \ICIncond), dentro del rango observado (\RangoEdad).
-3. A horas y posicion ocupacional fijas el maximo se corre a los
-   \textbf{\PicoCond\ anos} (IC 95\%: \ICCond). Los intervalos no se solapan.
-4. La diferencia de \DesplazaPico\ anos mide **cuanto del declive observado es
+3. A horas y posición ocupacional fijas el máximo se corre a los
+   \textbf{\PicoCond\ años} (IC 95\%: \ICCond). Los intervalos no se solapan.
+4. La diferencia de \DesplazaPico\ años mide **cuánto del declive observado es
    oferta laboral y no precio del trabajo**.
 
-**Limitacion**: la muestra excluye \ExcluidasIngreso\ ocupados adultos sin
+**Limitación**: la muestra excluye \ExcluidasIngreso\ ocupados adultos sin
 ingreso laboral observado (\PctExcluidasIngreso\%). El ingreso faltante se
-excluye, nunca se imputa: imputarlo exigiria un modelo de ingreso, que es
-justamente el objeto de estimacion.
+excluye, nunca se imputa: imputarlo exigiría un modelo de ingreso, que es
+justamente el objeto de estimación.
 
 <!-- NOTA DE REPRODUCCION -------------------------------------------------
 
@@ -194,27 +194,27 @@ pipeline. Antes de renderizarlo hay que correr, desde la raiz del proyecto:
 
 Eso deja las figuras en `views/figures/` y las tablas en `views/tables/`.
 Con `stores/raw/` en disco la corrida completa toma 1 min 29 s medidos; los
-dos bootstrap de esta seccion (1.000 replicas cada uno) son ~28 s de ese
+dos bootstrap de esta sección (1.000 réplicas cada uno) son ~28 s de ese
 total. Desde un clone limpio hay que sumarle la descarga de ~227 MB de HTML
 crudo.
 
 Ninguna cifra se transcribe a mano. Las del texto entran como macros de LaTeX
 desde `views/tables/cifras_age.tex`, que escribe `10_age_profile.R`: si la
-muestra cambia, las laminas cambian solas. La muestra de referencia es siempre
+muestra cambia, las láminas cambian solas. La muestra de referencia es siempre
 la misma: N = 14.751 observaciones, la que produce
 `construir_muestra_analisis()` en `scripts/02_cleaning.R`. Si una cifra de
-estas laminas no se puede rastrear hasta una corrida, es un error.
+estas láminas no se puede rastrear hasta una corrida, es un error.
 
 Si `02_cleaning.R` advierte que `muestra_analisis.rds` se construyo con reglas
 de limpieza distintas, hay que regenerarlo ANTES de renderizar: de lo
-contrario las laminas quedan describiendo una muestra que ya no existe.
+contrario las láminas quedan describiendo una muestra que ya no existe.
 
-Insumos de esta seccion:
+Insumos de esta sección:
   * scripts/10_age_profile.R
   * views/tables/cifras_age.tex             (macros con las cifras del texto)
-  * views/tables/perfiles_edad.tex          (tabla de regresion)
+  * views/tables/perfiles_edad.tex          (tabla de regresión)
   * views/figures/ingreso_por_edad.png      (perfil incondicional y concavidad)
   * views/figures/perfil_edad_condicional.png
   * views/figures/perfiles_edad_comparacion.png
-  * views/figures/dist_ingreso_log.png      (por que el outcome va en logs)
+  * views/figures/dist_ingreso_log.png      (por qué el outcome va en logs)
 --------------------------------------------------------------------- -->

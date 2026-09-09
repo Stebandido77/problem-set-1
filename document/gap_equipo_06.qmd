@@ -1,7 +1,7 @@
 ---
-title: "Seccion 2: Brecha de Ingreso Laboral por Genero"
+title: "Sección 2: Brecha de Ingreso Laboral por Género"
 subtitle: "Problem Set 1 — MECA 4107 — Equipo 06"
-author: "Neislen Garcia | Diego Felipe Rodríguez | Esteban Labastidas"
+author: "Neislen García | Diego Felipe Rodríguez | Esteban Labastidas"
 format:
   beamer:
     theme: metropolis
@@ -20,7 +20,7 @@ header-includes:
   - \newcommand{\tinytableTabularrayStrikeout}[1]{\sout{#1}}
   - \NewTableCommand{\tinytableDefineColor}[3]{\definecolor{#1}{#2}{#3}}
   # Las cifras del texto entran como macros desde el pipeline: ninguna se
-  # teclea en estas laminas. Las escribe scripts/20_gender_gap.R.
+  # teclea en estas láminas. Las escribe scripts/20_gender_gap.R.
   - \input{../views/tables/cifras_gap.tex}
 ---
 
@@ -29,36 +29,36 @@ header-includes:
 \textbf{Las mujeres ganan \BrechaCrudaPct\% menos que los hombres}
 (\BrechaCruda\ log points, sin controles).
 
-Al condicionar por edad, educacion y estrato la brecha **se agranda** a
+Al condicionar por edad, educación y estrato la brecha **se agranda** a
 \textbf{\BrechaCondPct\%} (\BrechaCond\ log points).
 
-- La brecha condicional es **mas grande**, no mas chica. Las mujeres de la
-  muestra estan **mas educadas** (\PctSuperiorMujeres\% con superior
-  frente a \PctSuperiorHombres\%): al compararlas a educacion igual, la
+- La brecha condicional es **más grande**, no más chica. Las mujeres de la
+  muestra están **más educadas** (\PctSuperiorMujeres\% con superior
+  frente a \PctSuperiorHombres\%): al compararlas a educación igual, la
   desventaja que queda es mayor.
-- Errores estandar practicamente identicos por las dos vias: analitico HC1
-  \SEAnalitico\ y bootstrap \SEBootstrap\ (\BootRepsGap\ replicas).
-- El pico del perfil edad-ingreso llega \textbf{\PicoHombres\ anos en hombres} y
+- Errores estándar prácticamente idénticos por las dos vias: analítico HC1
+  \SEAnalitico\ y bootstrap \SEBootstrap\ (\BootRepsGap\ réplicas).
+- El pico del perfil edad-ingreso llega \textbf{\PicoHombres\ años en hombres} y
   \textbf{\PicoMujeres\ en mujeres}: los intervalos no se solapan.
 
 \vfill
-\footnotesize GEIH 2018, Bogota. N = \NGap\ ocupados de 18 anos o mas.
+\footnotesize GEIH 2018, Bogotá. N = \NGap\ ocupados de 18 años o más.
 
-## Pregunta y motivacion
+## Pregunta y motivación
 
-**¿Cuanto menos gana una mujer que un hombre en Bogota, y cuanto de esa
+**¿Cuanto menos gana una mujer que un hombre en Bogotá, y cuánto de esa
 diferencia sobrevive al comparar personas observacionalmente parecidas?**
 
-La respuesta depende por completo de **que se controla**, y esa es la decision
-metodologica central de la seccion. No hay un conjunto de controles neutral:
+La respuesta depende por completo de **que se controla**, y esa es la decisión
+metodológica central de la sección. No hay un conjunto de controles neutral:
 
-- Controlar **de menos** deja dentro diferencias de composicion que no son
+- Controlar **de menos** deja dentro diferencias de composición que no son
   trato desigual.
-- Controlar **de mas** absorbe justamente los canales por los que opera la
-  desigualdad, y hace desaparecer lo que se queria medir.
+- Controlar **de más** absorbe justamente los canales por los que opera la
+  desigualdad, y hace desaparecer lo que se quería medir.
 
 Para la autoridad tributaria: si el ingreso esperado depende del sexo, un
-modelo que lo ignore yerra sistematicamente en media poblacion.
+modelo que lo ignore yerra sistemáticamente en media población.
 
 ## Evidencia descriptiva: la brecha cruda
 
@@ -66,7 +66,7 @@ modelo que lo ignore yerra sistematicamente en media poblacion.
 
 \footnotesize La diferencia de medias en logaritmos es \BrechaCruda, es decir
 \BrechaCrudaPct\%. Es el punto de partida, no el resultado: no distingue entre
-trato desigual y diferencias de composicion.
+trato desigual y diferencias de composición.
 
 ## Especificaciones
 
@@ -75,46 +75,46 @@ $$\log(w_i) = \beta_1 + \beta_2\,\text{mujer}_i + u_i$$
 
 **(2) Condicional — preferida**
 $$\log(w_i) = \beta_1 + \beta_2\,\text{mujer}_i + \gamma'X_i + u_i$$
-con $X_i$ = edad, edad$^2$, educacion y estrato.
+con $X_i$ = edad, edad$^2$, educación y estrato.
 
-**(3) Con controles de puesto**: agrega oficio, tamano de empresa y posicion
+**(3) Con controles de puesto**: agrega oficio, tamaño de empresa y posición
 ocupacional.
 
 \vspace{0.3em}
-El coeficiente de interes es siempre $\beta_2$. En (2) se estima ademas por
-**FWL**, con errores estandar analiticos (HC1) y bootstrap.
+El coeficiente de interés es siempre $\beta_2$. En (2) se estima además por
+**FWL**, con errores estándar analíticos (HC1) y bootstrap.
 
-## Por que esos controles, y no otros
+## Por qué esos controles, y no otros
 
-| Control | Por que entra |
+| Control | Por qué entra |
 |---|---|
 | Edad, edad$^2$ | Experiencia potencial. No la elige la persona. |
-| Educacion | Capital humano, casi todo previo al mercado. |
-| Estrato | Proxy de origen socioeconomico y de redes. |
+| Educación | Capital humano, casi todo previo al mercado. |
+| Estrato | Proxy de origen socioeconómico y de redes. |
 
 **Los tres son anteriores al empleo actual.** Esa es la regla que aplicamos:
-condicionar en caracteristicas **predeterminadas** de la persona, no en
+condicionar en características **predeterminadas** de la persona, no en
 resultados del mercado laboral.
 
-\footnotesize La educacion es el control mas discutible: estudiar
-anticipa un retorno que ya incorpora la discriminacion.
+\footnotesize La educación es el control más discutible: estudiar
+anticipa un retorno que ya incorpora la discriminación.
 
-## Los bad controls: oficio, tamano de empresa y posicion
+## Los bad controls: oficio, tamaño de empresa y posición
 
-La especificacion (3) agrega oficio, tamano de empresa y posicion ocupacional,
+La especificación (3) agrega oficio, tamaño de empresa y posición ocupacional,
 y la brecha **se encoge** a \BrechaBadControls.
 
 **Esa caida no es una mejora: es el sintoma.** Esas tres variables no son
-rasgos de la persona, son **resultados** del mercado laboral, y estan entre los
-canales por los que opera la desigualdad de genero:
+rasgos de la persona, son **resultados** del mercado laboral, y están entre los
+canales por los que opera la desigualdad de género:
 
-- La **segregacion ocupacional** — que las mujeres se concentren en oficios
-  peor pagados — es *parte de* la brecha, no una explicacion alternativa.
+- La **segregación ocupacional** — que las mujeres se concentren en oficios
+  peor pagados — es *parte de* la brecha, no una explicación alternativa.
 - Lo mismo con acceder a empresas grandes o a posiciones formales.
 
-Condicionar en ellas responde una pregunta mucho mas estrecha: *dado que ya
-esta en el mismo oficio, la misma empresa y la misma posicion, ¿cuanto menos
-gana?* Esa pregunta ignora como llego ahi.
+Condicionar en ellas responde una pregunta mucho más estrecha: *dado que ya
+está en el mismo oficio, la misma empresa y la misma posición, ¿cuánto menos
+gana?* Esa pregunta ignora cómo llegó ahí.
 
 **Por eso (2) es la preferida y (3) se reporta como contraste.**
 
@@ -123,38 +123,38 @@ gana?* Esa pregunta ignora como llego ahi.
 \scriptsize
 \input{../views/tables/brecha_compacta.tex}
 
-## Por que FWL recupera el mismo coeficiente
+## Por qué FWL recupera el mismo coeficiente
 
-FWL da **exactamente** el mismo $\beta_2$ que la regresion multiple. No es
-coincidencia numerica: es la geometria de MCO.
+FWL da **exactamente** el mismo $\beta_2$ que la regresión multiple. No es
+coincidencia numérica: es la geometría de MCO.
 
 **Procedimiento**: (i) se regresa `mujer` contra $X$ y se guarda el residuo
 $\tilde{m}$; (ii) se regresa $\log(w)$ contra $X$ y se guarda su residuo;
 (iii) se regresa el segundo residuo contra $\tilde{m}$.
 
-**Por que funciona.** MCO proyecta $\log(w)$ sobre el espacio generado por
-todos los regresores. El coeficiente de `mujer` en la regresion multiple usa
-solo la parte de `mujer` **ortogonal a $X$**: la variacion en sexo que no
-explican edad, educacion ni estrato. Residualizar hace explicito ese mismo
-paso. Los dos procedimientos usan identica informacion, de modo que llegan al
-mismo numero.
+**Por qué funciona.** MCO proyecta $\log(w)$ sobre el espacio generado por
+todos los regresores. El coeficiente de `mujer` en la regresión multiple usa
+solo la parte de `mujer` **ortogonal a $X$**: la variación en sexo que no
+explican edad, educación ni estrato. Residualizar hace explicito ese mismo
+paso. Los dos procedimientos usan idéntica información, de modo que llegan al
+mismo número.
 
 \footnotesize Verificado: los dos coeficientes coinciden en las siete
 cifras que imprime el pipeline.
 
-## Los dos errores estandar coinciden
+## Los dos errores estándar coinciden
 
-| Metodo | Error estandar de $\hat\beta_{\text{mujer}}$ |
+| Método | Error estándar de $\hat\beta_{\text{mujer}}$ |
 |---|---|
-| Analitico, HC1 robusto | \SEAnalitico |
-| Bootstrap, \BootRepsGap\ replicas | \SEBootstrap |
+| Analítico, HC1 robusto | \SEAnalitico |
+| Bootstrap, \BootRepsGap\ réplicas | \SEBootstrap |
 
 **Coinciden hasta la cuarta cifra.** Eso no es trivial y es informativo: el
 bootstrap no impone la forma funcional de la matriz de varianzas, de modo que
-su acuerdo con HC1 dice que las condiciones asintoticas de MCO se cumplen bien
+su acuerdo con HC1 dice que las condiciones asintóticas de MCO se cumplen bien
 en esta muestra.
 
-Si hubieran discrepado, el sospechoso natural seria la heterocedasticidad
+Si hubieran discrepado, el sospechoso natural sería la heterocedasticidad
 severa o las colas pesadas del ingreso. Con N = \NGap\ y el outcome en
 logaritmos, ninguna de las dos muerde.
 
@@ -163,31 +163,31 @@ logaritmos, ninguna de las dos muerde.
 ![](../views/figures/perfil_edad_ingreso.png){width=88%}
 
 \footnotesize
-Edad pico: \textbf{hombres \PicoHombres\ anos} (IC 95\% \ICPicoHombres),
-\textbf{mujeres \PicoMujeres\ anos} (IC 95\% \ICPicoMujeres). Bootstrap de
-percentiles, \BootRepsGap\ replicas, remuestreando filas y reajustando el
+Edad pico: \textbf{hombres \PicoHombres\ años} (IC 95\% \ICPicoHombres),
+\textbf{mujeres \PicoMujeres\ años} (IC 95\% \ICPicoMujeres). Bootstrap de
+percentiles, \BootRepsGap\ réplicas, remuestreando filas y reajustando el
 modelo completo en cada una.
 
 ## Los picos no se solapan, y eso dice algo
 
-Los intervalos \textbf{\ICPicoHombres} y \textbf{\ICPicoMujeres} estan separados: la
-diferencia de mas de cuatro anos no es ruido muestral.
+Los intervalos \textbf{\ICPicoHombres} y \textbf{\ICPicoMujeres} están separados: la
+diferencia de más de cuatro años no es ruido muestral.
 
-**Interpretacion.** El perfil femenino no solo esta mas abajo: llega a su
-maximo **antes** y empieza a decaer **antes**. Con el ciclo de vida laboral eso
+**Interpretación.** El perfil femenino no solo está más abajo: llega a su
+máximo **antes** y empieza a decaer **antes**. Con el ciclo de vida laboral eso
 es consistente con:
 
 - interrupciones de carrera concentradas en la treintena, que truncan la
-  acumulacion de experiencia justo en el tramo de mayor retorno;
+  acumulación de experiencia justo en el tramo de mayor retorno;
 - retorno posterior a empleos que no reconocen la experiencia previa.
 
 La brecha, entonces, **no es un nivel constante**: se abre con la edad. Un
 modelo que la resuma en un solo coeficiente promedia dos perfiles que divergen.
 
-## Limitacion: seleccion por no respuesta de ingreso
+## Limitación: selección por no respuesta de ingreso
 
 La muestra excluye \NExcluidos\ ocupados sin ingreso observado. El DANE
-imputa ingreso a \NImputados de ellos, y ese grupo esta **sesgado hacia los
+imputa ingreso a \NImputados de ellos, y ese grupo está **sesgado hacia los
 hombres**: \PctHombresImputados\% frente a \PctHombresMuestra\% en la muestra.
 
 Eso permite **acotar** el sesgo:
@@ -197,23 +197,23 @@ Eso permite **acotar** el sesgo:
 | Base (ingreso observado) | \NGap | \BrechaCruda |
 | Ampliada con `impaes` | \NAmpliada | \BrechaAmpliada |
 
-La brecha se mueve \textbf{\DesplazaBrecha} log points: se vuelve *mas*
+La brecha se mueve \textbf{\DesplazaBrecha} log points: se vuelve *más*
 negativa. La observada **subestima** la desventaja femenina, de modo que la
-seleccion **no compromete el resultado**.
+selección **no compromete el resultado**.
 
-\footnotesize Analisis de sensibilidad, no cota formal.
+\footnotesize Análisis de sensibilidad, no cota formal.
 
-## Conclusion
+## Conclusión
 
 1. La brecha cruda es \textbf{\BrechaCruda} log points (\BrechaCrudaPct\%).
-2. Condicionando por edad, educacion y estrato **se agranda** a
-   \textbf{\BrechaCond}: a caracteristicas predeterminadas iguales la
-   desventaja es mayor, porque las mujeres estan mas educadas.
-3. Agregar oficio, empresa y posicion la baja a \BrechaBadControls. **Esa
-   caida mide segregacion ocupacional**, que es parte de la brecha.
-4. Picos por sexo separados (\PicoHombres\ vs. \PicoMujeres\ anos): la
+2. Condicionando por edad, educación y estrato **se agranda** a
+   \textbf{\BrechaCond}: a características predeterminadas iguales la
+   desventaja es mayor, porque las mujeres están más educadas.
+3. Agregar oficio, empresa y posición la baja a \BrechaBadControls. **Esa
+   caida mide segregación ocupacional**, que es parte de la brecha.
+4. Picos por sexo separados (\PicoHombres\ vs. \PicoMujeres\ años): la
    brecha **se abre con la edad**.
-5. Corregir la no respuesta con la imputacion del DANE **agranda** la brecha
+5. Corregir la no respuesta con la imputación del DANE **agranda** la brecha
    (\DesplazaBrecha).
 
 <!-- NOTA DE REPRODUCCION -------------------------------------------------
@@ -227,18 +227,18 @@ Eso deja las figuras en `views/figures/` y las tablas en `views/tables/`.
 
 Ninguna cifra se transcribe a mano. Las del texto entran como macros de LaTeX
 desde `views/tables/cifras_gap.tex`, que escribe `20_gender_gap.R`: si la
-muestra cambia, las laminas cambian solas. La muestra de referencia es siempre
+muestra cambia, las láminas cambian solas. La muestra de referencia es siempre
 la misma: N = 14.751 observaciones, la que produce
 `construir_muestra_analisis()` en `scripts/02_cleaning.R`.
 
 Si `02_cleaning.R` advierte que `muestra_analisis.rds` se construyo con reglas
 de limpieza distintas, hay que regenerarlo ANTES de renderizar.
 
-Insumos de esta seccion:
+Insumos de esta sección:
   * scripts/20_gender_gap.R
   * views/tables/cifras_gap.tex            (macros con las cifras del texto)
-  * views/tables/tabla_brecha_genero.tex   (tabla de regresion)
+  * views/tables/tabla_brecha_genero.tex   (tabla de regresión)
   * views/figures/ingreso_por_genero.png   (la brecha cruda)
   * views/figures/perfil_edad_ingreso.png  (perfiles por sexo con picos)
-  * document/notas_pulso.md                (detalle de la seleccion)
+  * document/notas_pulso.md                (detalle de la selección)
 --------------------------------------------------------------------- -->
