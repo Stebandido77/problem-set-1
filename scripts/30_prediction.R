@@ -191,3 +191,337 @@ rmse_mod_5
   dplyr::arrange(rmse_validation)
 
 resultados_rmse
+
+# -----------------------------------------------------------------------------
+# 7. LOOCV - PROVISIONAL BEST MODEL
+# -----------------------------------------------------------------------------
+
+rmse_loocv_m5 <- rmse_loocv(mod_pred_5)
+
+rmse_loocv_m5
+
+#-----------------------------------------------------------------------------
+# 8. IMPORTANCE OF VARIABLES
+#-----------------------------------------------------------------------------  
+mod_sin_oficio <- update(
+  mod_pred_5,
+  . ~ . - oficio_grupo,
+  data = train
+)
+
+pred_sin_oficio <- predict(
+  mod_sin_oficio,
+  newdata = validation
+)
+
+rmse_sin_oficio <- rmse(
+  validation$ingreso_log,
+  pred_sin_oficio
+)
+
+importancia_oficio <- rmse_sin_oficio - rmse_mod_5
+
+rmse_sin_oficio
+importancia_oficio
+
+#Manteniendo el resto de la especificación de M5, eliminar oficio_grupo aumenta el RMSE de validación de 0.5814 a 0.6097. Por tanto, 
+#la ocupación aporta información relevante para predecir el ingreso laboral.
+
+mod_sin_horas <- update(
+  mod_pred_5,
+  . ~ . - horas,
+  data = train
+)
+
+pred_sin_horas <- predict(
+  mod_sin_horas,
+  newdata = validation
+)
+
+rmse_sin_horas <- rmse(
+  validation$ingreso_log,
+  pred_sin_horas
+)
+
+importancia_horas <- rmse_sin_horas - rmse_mod_5
+
+rmse_sin_horas
+importancia_horas
+
+mod_sin_relab <- update(
+  mod_pred_5,
+  . ~ . - relab_grupo,
+  data = train
+)
+
+pred_sin_relab <- predict(
+  mod_sin_relab,
+  newdata = validation
+)
+
+rmse_sin_relab <- rmse(
+  validation$ingreso_log,
+  pred_sin_relab
+)
+
+importancia_relab <- rmse_sin_relab - rmse_mod_5
+
+rmse_sin_relab
+importancia_relab
+
+mod_sin_tamano <- update(
+  mod_pred_5,
+  . ~ . - tamano_empresa,
+  data = train
+)
+
+pred_sin_tamano <- predict(
+  mod_sin_tamano,
+  newdata = validation
+)
+
+rmse_sin_tamano <- rmse(
+  validation$ingreso_log,
+  pred_sin_tamano
+)
+
+importancia_tamano <- rmse_sin_tamano - rmse_mod_5
+
+rmse_sin_tamano
+importancia_tamano
+
+mod_sin_cuenta <- update(
+  mod_pred_5,
+  . ~ . - cuenta_propia,
+  data = train
+)
+
+pred_sin_cuenta <- predict(
+  mod_sin_cuenta,
+  newdata = validation
+)
+
+rmse_sin_cuenta <- rmse(
+  validation$ingreso_log,
+  pred_sin_cuenta
+)
+
+# 
+
+importancia_cuenta <- rmse_sin_cuenta - rmse_mod_5
+
+rmse_sin_cuenta
+importancia_cuenta
+
+# Esta variable tiene colinealidad perfecta.
+
+mod_pred_5_clean <- update(
+  mod_pred_5,
+  . ~ . - cuenta_propia - micro_empresa,
+  data = train
+)
+# Eliminamos la variable del maneja original.
+
+# -----------------------------------------------------------------------------
+# VARIABLE IMPORTANCE: ESTRATO
+# -----------------------------------------------------------------------------
+# Eliminamos estrato del Modelo 5 limpio y evaluamos cuanto aumenta
+# el RMSE de validacion.
+
+mod_sin_estrato <- update(
+  mod_pred_5_clean,
+  . ~ . - estrato,
+  data = train
+)
+
+pred_sin_estrato <- predict(
+  mod_sin_estrato,
+  newdata = validation
+)
+# -----------------------------------------------------------------------------
+# VARIABLE IMPORTANCE: MUJER
+# -----------------------------------------------------------------------------
+# Mujer aparece como efecto principal y tambien interactua con educacion.
+# Para medir su importancia completa eliminamos ambos componentes.
+
+mod_sin_mujer <- update(
+  mod_pred_5_clean,
+  . ~ . - mujer - mujer:educ,
+  data = train
+)
+
+pred_sin_mujer <- predict(
+  mod_sin_mujer,
+  newdata = validation
+)
+
+rmse_sin_mujer <- rmse(
+  validation$ingreso_log,
+  pred_sin_mujer
+)
+
+importancia_mujer <- rmse_sin_mujer - rmse_m5_clean
+
+rmse_sin_mujer
+importancia_mujer
+rmse_sin_estrato <- rmse(
+  validation$ingreso_log,
+  pred_sin_estrato
+)
+
+importancia_estrato <- rmse_sin_estrato - rmse_m5_clean
+
+rmse_sin_estrato
+importancia_estrato
+
+# -----------------------------------------------------------------------------
+# VARIABLE IMPORTANCE: EDAD
+# -----------------------------------------------------------------------------
+# Edad aparece como termino lineal, cuadratico y en interaccion con educacion.
+# Para medir su importancia completa eliminamos los tres componentes.
+
+mod_sin_age <- update(
+  mod_pred_5_clean,
+  . ~ . - age - edad_2 - age:educ,
+  data = train
+)
+
+pred_sin_age <- predict(
+  mod_sin_age,
+  newdata = validation
+)
+
+rmse_sin_age <- rmse(
+  validation$ingreso_log,
+  pred_sin_age
+)
+
+importancia_age <- rmse_sin_age - rmse_m5_clean
+
+rmse_sin_age
+importancia_age
+
+
+# -----------------------------------------------------------------------------
+# VARIABLE IMPORTANCE: EDAD
+# -----------------------------------------------------------------------------
+# Edad aparece como termino lineal, cuadratico y en interaccion con educacion.
+# Para medir su importancia completa eliminamos los tres componentes.
+
+mod_sin_age <- update(
+  mod_pred_5_clean,
+  . ~ . - age - edad_2 - age:educ,
+  data = train
+)
+
+pred_sin_age <- predict(
+  mod_sin_age,
+  newdata = validation
+)
+
+rmse_sin_age <- rmse(
+  validation$ingreso_log,
+  pred_sin_age
+)
+
+importancia_age <- rmse_sin_age - rmse_m5_clean
+
+rmse_sin_age
+importancia_age
+
+# -----------------------------------------------------------------------------
+# VARIABLE IMPORTANCE: EDUCACION
+# -----------------------------------------------------------------------------
+# Educacion aparece como efecto principal y en interacciones con mujer y edad.
+# Para medir su importancia completa eliminamos todos esos componentes.
+
+mod_sin_educ <- update(
+  mod_pred_5_clean,
+  . ~ . - educ - mujer:educ - age:educ,
+  data = train
+)
+
+pred_sin_educ <- predict(
+  mod_sin_educ,
+  newdata = validation
+)
+
+rmse_sin_educ <- rmse(
+  validation$ingreso_log,
+  pred_sin_educ
+)
+
+importancia_educ <- rmse_sin_educ - rmse_m5_clean
+
+rmse_sin_educ
+importancia_educ
+
+# -----------------------------------------------------------------------------
+# 8. DEPENDENCE OF PREDICTIONS ON THE MOST IMPORTANT VARIABLE
+# -----------------------------------------------------------------------------
+
+coef(mod_pred_5_clean)["horas"]
+
+# =============================================================================
+# 8. DEPENDENCE OF PREDICTIONS ON HOURS WORKED
+# =============================================================================
+# `horas` was identified as the most important predictor according to the
+# increase in validation RMSE when the variable was removed.
+#
+# We now characterize how the predictions of the best model depend on hours
+# worked.
+#
+# For each possible value of `horas`, we keep all other characteristics of
+# the validation observations unchanged, replace only `horas`, generate
+# predictions, and calculate the average predicted log income.
+#
+# We restrict the graph to the central 90% of observed hours to avoid letting
+# extreme observations dominate the visualization.
+
+horas_grid <- seq(
+  from = quantile(validation$horas, 0.05, na.rm = TRUE),
+  to   = quantile(validation$horas, 0.95, na.rm = TRUE),
+  length.out = 100
+)
+
+pred_promedio_horas <- sapply(
+  horas_grid,
+  function(h) {
+
+    datos_h <- validation
+
+    # Change only hours worked
+    datos_h$horas <- h
+
+    # Predict log income with Model 5
+    pred_h <- predict(
+      mod_pred_5_clean,
+      newdata = datos_h
+    )
+
+    # Average prediction
+    mean(pred_h, na.rm = TRUE)
+  }
+)
+
+dependencia_horas <- tibble::tibble(
+  horas = horas_grid,
+  ingreso_log_predicho = pred_promedio_horas
+)
+
+ggplot2::ggplot(
+  dependencia_horas,
+  ggplot2::aes(
+    x = horas,
+    y = ingreso_log_predicho
+  )
+) +
+  ggplot2::geom_line(linewidth = 1) +
+  ggplot2::labs(
+    x = "Hours worked",
+    y = "Average predicted log income",
+    title = "Predicted Labor Income and Hours Worked"
+  ) +
+  ggplot2::theme_minimal()
+
+  
