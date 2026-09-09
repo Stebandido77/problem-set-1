@@ -402,8 +402,21 @@ rmse_m5_clean
 # colinealidad perfecta (seccion 7) y produce predicciones identicas, de modo
 # que informar los dos duplicaria una misma fila.
 
+# MODELO NULO: predecir a todo el mundo la media de ingreso_log del
+# entrenamiento, sin un solo regresor. Es el piso contra el que hay que leer
+# todo lo demas: un modelo que no le gane a esta fila no esta aportando
+# informacion, solo esta reproduciendo el nivel promedio. La media se toma
+# SOBRE TRAIN, no sobre validation, porque usar la media del fold de
+# validacion seria mirar la respuesta antes de predecirla.
+
+pred_nulo <- rep(mean(train$ingreso_log), nrow(validation))
+rmse_nulo <- rmse(validation$ingreso_log, pred_nulo)
+
+rmse_nulo
+
 resultados_rmse <- tibble::tibble(
   modelo = c(
+    "Media (sin regresores)",
     "Baseline S1 incondicional",
     "Baseline S1 condicional",
     "Baseline S2",
@@ -414,6 +427,7 @@ resultados_rmse <- tibble::tibble(
     "Modelo 5 (limpio)"
   ),
   rmse_validation = c(
+    rmse_nulo,
     rmse_s1_incond,
     rmse_s1_cond,
     rmse_m2,
@@ -424,7 +438,14 @@ resultados_rmse <- tibble::tibble(
     rmse_m5_clean
   )
 ) |>
+  dplyr::mutate(
+    reduccion_vs_nulo = 1 - rmse_validation / rmse_nulo
+  ) |>
   dplyr::arrange(rmse_validation)
+
+# `reduccion_vs_nulo` es la fraccion del error del modelo nulo que la
+# especificacion elimina. Responde la pregunta que motiva la fila nula:
+# cuanto aporta cada modelo por encima de no saber nada.
 
 # print() explicito: al correr por 99_run_all.R el script llega via
 # source(), que no auto-imprime objetos sueltos. Sin esto la tabla de
