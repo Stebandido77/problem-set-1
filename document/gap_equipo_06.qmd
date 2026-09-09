@@ -1,7 +1,7 @@
 ---
 title: "Seccion 2: Brecha de Ingreso Laboral por Genero"
 subtitle: "Problem Set 1 — MECA 4107 — Equipo 06"
-author: "Neislen Garcia | Diego Felipe Rodriguez | Esteban Labastidas"
+author: "Neislen Garcia | Diego Felipe Rodríguez | Esteban Labastidas"
 format:
   beamer:
     theme: metropolis
