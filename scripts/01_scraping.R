@@ -177,3 +177,7 @@ if (!mismo_esquema) {
 # usa: quien los necesita es `02_cleaning.R`, que los relee del `.rds`.
 rm(chunks)
 invisible(gc())
+
+
+
+

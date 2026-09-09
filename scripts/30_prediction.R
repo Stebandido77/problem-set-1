@@ -48,6 +48,13 @@ source(here::here("scripts", "20_gender_gap.R"))
 # -----------------------------------------------------------------------------
 # 1. TRAIN / VALIDATION SPLIT
 # -----------------------------------------------------------------------------
+# Separamos la muestra de en dos partes/grupos:
+#
+# train: observaciones previamente usadas para estimar el modelo.
+# validation: observaciones que se guardaran para analizar 
+# que tan bueno es el modelo prediciendo fuerra de la muestra.
+
+# Previamente la separación fuenida en la base mediante la variable `particion`.
 
 train <- muestra_analisis |>
   dplyr::filter(particion == "entrenamiento")
@@ -56,7 +63,9 @@ validation <- muestra_analisis |>
   dplyr::filter(particion == "validacion")
 
 
-# Check partition
+# # Verificamos el número de observaciones en cada conjunto. Luego, comprobamos que
+# los chunks asignados a entrenamiento y validacion sean los propuestos previamente.
+
 nrow(train)
 nrow(validation)
 
@@ -187,7 +196,6 @@ rmse_mod_5
     rmse_mod_4,
     rmse_mod_5
   )
-) |>
   dplyr::arrange(rmse_validation)
 
 resultados_rmse
