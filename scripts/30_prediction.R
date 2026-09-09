@@ -917,3 +917,121 @@ grafica_horas <- ggplot2::ggplot(
 # por Rscript deja un Rplots.pdf suelto en la raiz del repositorio.
 
 guardar_fig(grafica_horas, "dependencia_horas.png")
+
+
+# =============================================================================
+# 12. EXPORTACION DE TABLAS Y CIFRAS PARA EL DECK
+# =============================================================================
+# El deck de la Seccion 3 no calcula nada: incluye estas salidas con \input{}.
+# Ninguna cifra se teclea en las laminas.
+
+# Diagnostico para la autoridad tributaria: quienes quedan fuera del alcance
+# del modelo. No son ruido, son un grupo con perfil propio, y ninguna
+# especificacion de esta seccion puede senalarlos porque no estan en la
+# muestra sobre la que se estima.
+
+crudo_pred <- do.call(
+  rbind,
+  lapply(
+    seq_len(10),
+    function(i) {
+      readRDS(here::here("stores", "raw", sprintf("chunk_%02d.rds", i)))
+    }
+  )
+)
+
+sin_ingreso_pred <- crudo_pred |>
+  dplyr::filter(ocu == 1, age >= 18, is.na(y_total_m), !is.na(impaes))
+
+pct_indep_sin_ingreso <- 100 * mean(
+  sin_ingreso_pred$relab %in% c(4, 5),
+  na.rm = TRUE
+)
+
+# --- Tabla 1: RMSE de validacion de todas las especificaciones --------------
+
+tabla_rmse <- resultados_rmse |>
+  dplyr::mutate(
+    rmse_validation   = num_es(rmse_validation, 4),
+    reduccion_vs_nulo = num_es(100 * reduccion_vs_nulo, 1)
+  ) |>
+  dplyr::rename(
+    `Especificacion`             = modelo,
+    `RMSE validacion`            = rmse_validation,
+    `Reduccion vs. nulo (pp)`    = reduccion_vs_nulo
+  )
+
+# datasummary_df() viene de modelsummary, que ya esta en 00_packages.R. Se usa
+# en vez de tinytable directamente para no agregar una dependencia nueva.
+
+modelsummary::datasummary_df(
+  tabla_rmse,
+  output = here::here("views", "tables", "rmse_pred.tex"),
+  notes = paste(
+    "Estimacion sobre chunks 1-7; RMSE sobre chunks 8-10. El modelo nulo",
+    "predice la media de entrenamiento a todas las observaciones."
+  )
+)
+
+# --- Tabla 2: importancia de variables --------------------------------------
+
+tabla_importancia <- resultados_importancia |>
+  dplyr::mutate(aumento_rmse = num_es(aumento_rmse, 4)) |>
+  dplyr::rename(
+    `Variable`                = variable,
+    `Aumento del RMSE`        = aumento_rmse
+  )
+
+modelsummary::datasummary_df(
+  tabla_importancia,
+  output = here::here("views", "tables", "importancia_pred.tex"),
+  notes = paste(
+    "Aumento del RMSE de validacion al retirar la variable del Modelo 5",
+    "limpio y reestimar sobre entrenamiento."
+  )
+)
+
+# --- Macros con las cifras del texto ----------------------------------------
+
+cifras_pred <- c(
+  sprintf("\\newcommand{\\NTrain}{%s}",
+          formatC(nrow(train), format = "d", big.mark = ".")),
+  sprintf("\\newcommand{\\NValidacion}{%s}",
+          formatC(nrow(validation), format = "d", big.mark = ".")),
+  sprintf("\\newcommand{\\ModeloGanador}{%s}", modelo_ganador),
+  sprintf("\\newcommand{\\RMSEGanador}{%s}", num_es(rmse_ganador, 4)),
+  sprintf("\\newcommand{\\RMSENulo}{%s}", num_es(rmse_nulo, 4)),
+  sprintf("\\newcommand{\\RMSELoocv}{%s}", num_es(rmse_loocv_m5, 4)),
+  sprintf("\\newcommand{\\BrechaLoocv}{%s}",
+          num_es(rmse_ganador - rmse_loocv_m5, 4, signo = TRUE)),
+  sprintf("\\newcommand{\\ReduccionGanador}{%s}",
+          num_es(100 * (1 - rmse_ganador / rmse_nulo), 1)),
+  sprintf("\\newcommand{\\ReduccionSUnoIncond}{%s}",
+          num_es(100 * (1 - rmse_s1_incond / rmse_nulo), 1)),
+  sprintf("\\newcommand{\\RMSESUnoIncond}{%s}", num_es(rmse_s1_incond, 4)),
+  sprintf("\\newcommand{\\RMSESUnoCond}{%s}", num_es(rmse_s1_cond, 4)),
+  sprintf("\\newcommand{\\RMSESDos}{%s}", num_es(rmse_m2, 4)),
+  sprintf("\\newcommand{\\VarImportante}{%s}",
+          resultados_importancia$variable[1]),
+  sprintf("\\newcommand{\\ImportanciaTop}{%s}",
+          num_es(resultados_importancia$aumento_rmse[1], 4)),
+  sprintf("\\newcommand{\\ImportanciaSegunda}{%s}",
+          num_es(resultados_importancia$aumento_rmse[2], 4)),
+  sprintf("\\newcommand{\\CoefHorasPred}{%s}",
+          num_es(unname(coef_horas), 5)),
+  sprintf("\\newcommand{\\PicoTrainIncond}{%s}",
+          num_es(edad_pico_train_incond, 2)),
+  sprintf("\\newcommand{\\PicoTrainCond}{%s}",
+          num_es(edad_pico_train_cond, 2)),
+  sprintf("\\newcommand{\\NSinIngresoPred}{%s}",
+          formatC(nrow(sin_ingreso_pred), format = "d", big.mark = ".")),
+  sprintf("\\newcommand{\\PctIndepSinIngreso}{%s}",
+          num_es(pct_indep_sin_ingreso, 1))
+)
+
+writeLines(
+  cifras_pred,
+  here::here("views", "tables", "cifras_pred.tex")
+)
+
+message("rmse_pred.tex, importancia_pred.tex y cifras_pred.tex written.")

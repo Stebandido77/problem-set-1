@@ -300,3 +300,31 @@ message("\n--- December dummy alone (cited in the figure subtitle) ---")
 print(summary(test_dic)$coefficients)
 message("\n--- December dummy on top of a month trend ---")
 print(summary(test_deriva)$coefficients)
+
+
+# -----------------------------------------------------------------------------
+# Macros con las cifras del chequeo de deriva temporal
+# -----------------------------------------------------------------------------
+# Las cita el deck de la Seccion 3 para justificar que el corte temporal 1-7 /
+# 8-10 no introduce un salto de nivel entre folds. Se exportan como macros para
+# que ninguna se teclee en las laminas.
+
+coef_deriva <- summary(test_deriva)$coefficients["I(mes == 12)TRUE", ]
+
+cifras_deriva <- c(
+  sprintf("\\newcommand{\\CoefDicSolo}{%s}",
+          num_es(coef_dic[["Estimate"]], 4, signo = TRUE)),
+  sprintf("\\newcommand{\\PDicSolo}{%s}",
+          num_es(coef_dic[["Pr(>|t|)"]], 2)),
+  sprintf("\\newcommand{\\CoefDicTend}{%s}",
+          num_es(coef_deriva[["Estimate"]], 3, signo = TRUE)),
+  sprintf("\\newcommand{\\PDicTend}{%s}",
+          num_es(coef_deriva[["Pr(>|t|)"]], 2))
+)
+
+writeLines(
+  cifras_deriva,
+  here::here("views", "tables", "cifras_deriva.tex")
+)
+
+message("cifras_deriva.tex written: ", length(cifras_deriva), " macros.")
