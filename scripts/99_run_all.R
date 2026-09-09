@@ -28,3 +28,6 @@ source(here::here("scripts", "20_gender_gap.R"))
 source(here::here("scripts", "30_prediction.R"))
 
 message("Pipeline finished. Check views/tables and views/figures.")
+
+
+
