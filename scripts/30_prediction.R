@@ -456,3 +456,72 @@ importancia_educ <- rmse_sin_educ - rmse_m5_clean
 rmse_sin_educ
 importancia_educ
 
+# -----------------------------------------------------------------------------
+# 8. DEPENDENCE OF PREDICTIONS ON THE MOST IMPORTANT VARIABLE
+# -----------------------------------------------------------------------------
+
+coef(mod_pred_5_clean)["horas"]
+
+# =============================================================================
+# 8. DEPENDENCE OF PREDICTIONS ON HOURS WORKED
+# =============================================================================
+# `horas` was identified as the most important predictor according to the
+# increase in validation RMSE when the variable was removed.
+#
+# We now characterize how the predictions of the best model depend on hours
+# worked.
+#
+# For each possible value of `horas`, we keep all other characteristics of
+# the validation observations unchanged, replace only `horas`, generate
+# predictions, and calculate the average predicted log income.
+#
+# We restrict the graph to the central 90% of observed hours to avoid letting
+# extreme observations dominate the visualization.
+
+horas_grid <- seq(
+  from = quantile(validation$horas, 0.05, na.rm = TRUE),
+  to   = quantile(validation$horas, 0.95, na.rm = TRUE),
+  length.out = 100
+)
+
+pred_promedio_horas <- sapply(
+  horas_grid,
+  function(h) {
+
+    datos_h <- validation
+
+    # Change only hours worked
+    datos_h$horas <- h
+
+    # Predict log income with Model 5
+    pred_h <- predict(
+      mod_pred_5_clean,
+      newdata = datos_h
+    )
+
+    # Average prediction
+    mean(pred_h, na.rm = TRUE)
+  }
+)
+
+dependencia_horas <- tibble::tibble(
+  horas = horas_grid,
+  ingreso_log_predicho = pred_promedio_horas
+)
+
+ggplot2::ggplot(
+  dependencia_horas,
+  ggplot2::aes(
+    x = horas,
+    y = ingreso_log_predicho
+  )
+) +
+  ggplot2::geom_line(linewidth = 1) +
+  ggplot2::labs(
+    x = "Hours worked",
+    y = "Average predicted log income",
+    title = "Predicted Labor Income and Hours Worked"
+  ) +
+  ggplot2::theme_minimal()
+
+  
