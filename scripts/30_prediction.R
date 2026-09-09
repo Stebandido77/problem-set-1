@@ -3,7 +3,7 @@
 #
 # Objetivo de esta seccion:
 #   1. Separar entrenamiento y validacion segun la particion definida.
-#   2. Reestimar el baseline de la Seccion 2 sobre train.
+#   2. Reestimar los baselines de las Secciones 1 y 2 sobre train.
 #   3. Estimar al menos cinco especificaciones adicionales.
 #   4. Compararlas por RMSE de validacion.
 #   5. Aplicar LOOCV al mejor modelo.
@@ -73,8 +73,71 @@ nrow(validation)
 
 table(train$chunk_id)
 table(validation$chunk_id)
+
+
 # =============================================================================
-# 2. BASELINE DE LA SECCION 2, REESTIMADO SOBRE TRAIN
+# 2. BASELINE DE LA SECCION 1, REESTIMADO SOBRE TRAIN
+# =============================================================================
+# La Seccion 1 estima el perfil edad-ingreso sobre la muestra COMPLETA, porque
+# alli la pregunta es descriptiva y no hay ninguna eleccion de modelo que
+# validar. Aqui la pregunta es otra: cuanto predice esa especificacion fuera de
+# muestra. Por eso se reestima sobre train y se evalua en validation, igual que
+# todos los demas modelos de esta seccion.
+#
+# Se reestiman las DOS especificaciones de la Seccion 1:
+#   (1) incondicional: ingreso_log ~ age + edad_2
+#   (2) condicional  : + horas + relab_grupo
+#
+# OJO CON LA EDAD PICO: la de esta seccion NO tiene por que coincidir con la
+# que reporta la Seccion 1. Aquella se estima sobre las 14.751 observaciones;
+# esta, sobre los chunks 1-7 solamente. Una diferencia entre las dos es
+# variabilidad muestral, no un error: son dos muestras distintas.
+
+base_s1_incond <- lm(
+  ingreso_log ~ age + edad_2,
+  data = train
+)
+
+base_s1_cond <- lm(
+  ingreso_log ~ age + edad_2 + horas + relab_grupo,
+  data = train
+)
+
+pred_s1_incond <- predict(base_s1_incond, newdata = validation)
+pred_s1_cond   <- predict(base_s1_cond,   newdata = validation)
+
+rmse_s1_incond <- rmse(validation$ingreso_log, pred_s1_incond)
+rmse_s1_cond   <- rmse(validation$ingreso_log, pred_s1_cond)
+
+rmse_s1_incond
+rmse_s1_cond
+
+# Edad pico sobre train, contrastada con la de la muestra completa. Se imprimen
+# las dos para dejar el contraste a la vista y que nadie lea la diferencia como
+# una inconsistencia entre secciones.
+
+edad_pico_train_incond <- edad_pico(base_s1_incond)
+edad_pico_train_cond   <- edad_pico(base_s1_cond)
+
+edad_pico_full_incond <- edad_pico(
+  lm(ingreso_log ~ age + edad_2, data = muestra_analisis)
+)
+edad_pico_full_cond <- edad_pico(
+  lm(ingreso_log ~ age + edad_2 + horas + relab_grupo,
+     data = muestra_analisis)
+)
+
+cat("\n--- edad pico: train (chunks 1-7) vs muestra completa ---\n")
+cat(sprintf("  incondicional  train %.2f | completa %.2f | dif %+.2f\n",
+            edad_pico_train_incond, edad_pico_full_incond,
+            edad_pico_train_incond - edad_pico_full_incond))
+cat(sprintf("  condicional    train %.2f | completa %.2f | dif %+.2f\n",
+            edad_pico_train_cond, edad_pico_full_cond,
+            edad_pico_train_cond - edad_pico_full_cond))
+
+
+# =============================================================================
+# 3. BASELINE DE LA SECCION 2, REESTIMADO SOBRE TRAIN
 # =============================================================================
 # El baseline de la Seccion 2 fue estimado originalmente como `m2`.
 # Para evaluar prediccion fuera de muestra, reestimamos exactamente la misma
@@ -112,7 +175,7 @@ rmse_m2
 
 
 # =============================================================================
-# 3. CINCO ESPECIFICACIONES PREDICTIVAS ADICIONALES
+# 4. CINCO ESPECIFICACIONES PREDICTIVAS ADICIONALES
 # =============================================================================
 # Partimos del baseline de la Seccion 2 y aumentamos progresivamente la
 # flexibilidad y la informacion disponible para el predictor.
@@ -225,7 +288,7 @@ mod_pred_5 <- lm(
 
 
 # =============================================================================
-# 4. PREDICCIONES SOBRE VALIDATION
+# 5. PREDICCIONES SOBRE VALIDATION
 # =============================================================================
 # Generamos predicciones para las mismas observaciones de validation usando
 # cada uno de los cinco modelos estimados en train.
@@ -264,7 +327,7 @@ sapply(
 
 
 # =============================================================================
-# 5. RMSE DE VALIDACION DE LAS CINCO ESPECIFICACIONES
+# 6. RMSE DE VALIDACION DE LAS CINCO ESPECIFICACIONES
 # =============================================================================
 # Calculamos el RMSE de cada especificacion sobre el mismo validation set.
 
@@ -282,7 +345,7 @@ rmse_mod_5
 
 
 # =============================================================================
-# 6. COLINEALIDAD PERFECTA Y MODELO 5 LIMPIO
+# 7. COLINEALIDAD PERFECTA Y MODELO 5 LIMPIO
 # =============================================================================
 # Durante la revision del Modelo 5 observamos coeficientes NA para
 # `cuenta_propia` y `micro_empresa`.
@@ -328,16 +391,21 @@ rmse_m5_clean
 
 
 # =============================================================================
-# 7. TABLA COMPARATIVA DE RMSE DE VALIDACION
+# 8. TABLA COMPARATIVA: BASELINES Y MODELOS NUEVOS
 # =============================================================================
-# Tabla ordenada de menor a mayor RMSE de validacion.
+# Reunimos en una sola tabla los baselines de las Secciones 1 y 2 y las cinco
+# especificaciones nuevas. El enunciado pide exactamente esta comparacion: las
+# especificaciones de las secciones anteriores son la linea base contra la que
+# se miden los modelos predictivos.
 #
 # Se reporta el Modelo 5 LIMPIO. El original tiene dos coeficientes NA por
-# colinealidad perfecta (seccion 6) y produce predicciones identicas, de modo
+# colinealidad perfecta (seccion 7) y produce predicciones identicas, de modo
 # que informar los dos duplicaria una misma fila.
 
 resultados_rmse <- tibble::tibble(
   modelo = c(
+    "Baseline S1 incondicional",
+    "Baseline S1 condicional",
     "Baseline S2",
     "Modelo 1",
     "Modelo 2",
@@ -346,6 +414,8 @@ resultados_rmse <- tibble::tibble(
     "Modelo 5 (limpio)"
   ),
   rmse_validation = c(
+    rmse_s1_incond,
+    rmse_s1_cond,
     rmse_m2,
     rmse_mod_1,
     rmse_mod_2,
@@ -362,8 +432,29 @@ resultados_rmse <- tibble::tibble(
 
 print(resultados_rmse)
 
+# El ganador es la primera fila de la tabla. Se lee del objeto en vez de
+# escribirlo a mano, para que un cambio de muestra no deje el texto desfasado.
+
+modelo_ganador <- resultados_rmse$modelo[1]
+rmse_ganador   <- resultados_rmse$rmse_validation[1]
+
+cat(sprintf("\n--- ganador por RMSE de validacion: %s (%.4f) ---\n",
+            modelo_ganador, rmse_ganador))
+
+# El LOOCV y la importancia de variables de las secciones siguientes se
+# calculan sobre el Modelo 5 limpio. Si el ganador dejara de ser ese modelo,
+# habria que repetirlos sobre el nuevo ganador: este stopifnot() detiene la
+# corrida en vez de dejar que el resto de la seccion analice un modelo que ya
+# no es el elegido.
+
+stopifnot(
+  "El ganador ya no es el Modelo 5 limpio: repetir LOOCV e importancia." =
+    modelo_ganador == "Modelo 5 (limpio)"
+)
+
+
 # =============================================================================
-# 8. LOOCV DEL MEJOR MODELO
+# 9. LOOCV DEL MEJOR MODELO
 # =============================================================================
 # Comparamos el desempeño del mejor modelo provisional usando LOOCV sobre
 # train.
@@ -384,7 +475,7 @@ rmse_loocv_m5
 
 
 # =============================================================================
-# 9. IMPORTANCIA DE VARIABLES
+# 10. IMPORTANCIA DE VARIABLES
 # =============================================================================
 # Definimos la importancia predictiva de una variable j como:
 #
@@ -406,7 +497,7 @@ rmse_loocv_m5
 
 
 # -----------------------------------------------------------------------------
-# 9.1 OCCUPATION
+# 10.1 OCCUPATION
 # -----------------------------------------------------------------------------
 
 mod_sin_oficio <- update(
@@ -432,7 +523,7 @@ importancia_oficio
 
 
 # -----------------------------------------------------------------------------
-# 9.2 HOURS WORKED
+# 10.2 HOURS WORKED
 # -----------------------------------------------------------------------------
 
 mod_sin_horas <- update(
@@ -458,7 +549,7 @@ importancia_horas
 
 
 # -----------------------------------------------------------------------------
-# 9.3 EMPLOYMENT RELATIONSHIP
+# 10.3 EMPLOYMENT RELATIONSHIP
 # -----------------------------------------------------------------------------
 
 mod_sin_relab <- update(
@@ -484,7 +575,7 @@ importancia_relab
 
 
 # -----------------------------------------------------------------------------
-# 9.4 FIRM SIZE
+# 10.4 FIRM SIZE
 # -----------------------------------------------------------------------------
 
 mod_sin_tamano <- update(
@@ -510,7 +601,7 @@ importancia_tamano
 
 
 # -----------------------------------------------------------------------------
-# 9.5 FORMAL EMPLOYMENT
+# 10.5 FORMAL EMPLOYMENT
 # -----------------------------------------------------------------------------
 
 mod_sin_formal <- update(
@@ -536,7 +627,7 @@ importancia_formal
 
 
 # -----------------------------------------------------------------------------
-# 9.6 SOCIOECONOMIC STRATUM
+# 10.6 SOCIOECONOMIC STRATUM
 # -----------------------------------------------------------------------------
 
 mod_sin_estrato <- update(
@@ -562,7 +653,7 @@ importancia_estrato
 
 
 # -----------------------------------------------------------------------------
-# 9.7 TENURE
+# 10.7 TENURE
 # -----------------------------------------------------------------------------
 # Antiguedad aparece de forma lineal y cuadratica. Para medir la importancia
 # de la variable completa eliminamos ambos terminos.
@@ -590,7 +681,7 @@ importancia_antiguedad
 
 
 # -----------------------------------------------------------------------------
-# 9.8 GENDER
+# 10.8 GENDER
 # -----------------------------------------------------------------------------
 # `mujer` aparece como efecto principal y en la interaccion `mujer:educ`.
 # Para medir la importancia del bloque asociado a genero eliminamos ambos.
@@ -618,7 +709,7 @@ importancia_mujer
 
 
 # -----------------------------------------------------------------------------
-# 9.9 AGE
+# 10.9 AGE
 # -----------------------------------------------------------------------------
 # Edad aparece como termino lineal, cuadratico y en interaccion con educacion.
 # Para medir su importancia completa eliminamos los tres componentes.
@@ -646,7 +737,7 @@ importancia_age
 
 
 # -----------------------------------------------------------------------------
-# 9.10 EDUCATION
+# 10.10 EDUCATION
 # -----------------------------------------------------------------------------
 # Educacion aparece como efecto principal y en interacciones con mujer y edad.
 # Para medir su importancia completa eliminamos todos esos componentes.
@@ -674,7 +765,7 @@ importancia_educ
 
 
 # -----------------------------------------------------------------------------
-# 9.11 VARIABLE IMPORTANCE RANKING
+# 10.11 VARIABLE IMPORTANCE RANKING
 # -----------------------------------------------------------------------------
 # Ordenamos todas las variables evaluadas por el aumento que generan en el
 # RMSE cuando se eliminan del modelo.
@@ -719,7 +810,7 @@ print(resultados_importancia)
 
 
 # =============================================================================
-# 10. DEPENDENCIA DE LAS PREDICCIONES RESPECTO DE HORAS
+# 11. DEPENDENCIA DE LAS PREDICCIONES RESPECTO DE HORAS
 # =============================================================================
 # Despues de identificar `horas` como la variable mas importante, analizamos
 # como cambian las predicciones del modelo cuando cambia esta variable.
@@ -743,7 +834,7 @@ coef_horas
 
 
 # -----------------------------------------------------------------------------
-# 10.1 PREDICTION DEPENDENCE CURVE
+# 11.1 PREDICTION DEPENDENCE CURVE
 # -----------------------------------------------------------------------------
 # Para cada valor de horas:
 #   1. mantenemos intactas las demas caracteristicas observadas en validation;
