@@ -1,13 +1,15 @@
 # 30_prediction.R ------------------------------------------------------------
 # Seccion 3: prediccion fuera de muestra.
 #
-#   - Particion: chunks 1-7 entrenamiento / chunks 8-10 validacion
-#   - Baseline: las especificaciones de las Secciones 1 y 2
-#   - Al menos 5 especificaciones adicionales (no linealidades, interacciones,
-#     controles nuevos)
-#   - Mejor modelo por RMSE de validacion, y despues LOOCV sobre entrenamiento
-#     (con el atajo de la matriz sombrero, no reajustando n veces)
-#   - Importancia de variables: hay que definir la medida y justificarla
+# Objetivo de esta seccion:
+#   1. Separar entrenamiento y validacion segun la particion definida.
+#   2. Reestimar los baselines de las Secciones 1 y 2 sobre train.
+#   3. Estimar al menos cinco especificaciones adicionales.
+#   4. Compararlas por RMSE de validacion.
+#   5. Aplicar LOOCV al mejor modelo.
+#   6. Definir una medida de importancia predictiva y encontrar la variable
+#      mas importante.
+#   7. Caracterizar como dependen las predicciones de esa variable.
 #
 # POR QUE LA PARTICION ES TEMPORAL Y NO ALEATORIA
 # Los 10 chunks estan ordenados por mes de encuesta: el chunk 1 cubre enero y
@@ -43,18 +45,21 @@
 source(here::here("scripts", "02_cleaning.R"))
 source(here::here("scripts", "functions", "rmse.R"))
 source(here::here("scripts", "functions", "rmse_loocv.R"))
+source(here::here("scripts", "functions", "figuras.R"))
 source(here::here("scripts", "20_gender_gap.R"))
 
-# -----------------------------------------------------------------------------
-# 1. TRAIN / VALIDATION SPLIT
-# -----------------------------------------------------------------------------
-# Separamos la muestra de en dos partes/grupos:
-#
-# train: observaciones previamente usadas para estimar el modelo.
-# validation: observaciones que se guardaran para analizar 
-# que tan bueno es el modelo prediciendo fuerra de la muestra.
 
-# Previamente la separación fuenida en la base mediante la variable `particion`.
+# =============================================================================
+# 1. PARTICION ENTRENAMIENTO / VALIDACION
+# =============================================================================
+# Separamos la muestra en dos grupos:
+#
+# - train: observaciones utilizadas para estimar los modelos.
+# - validation: observaciones reservadas para evaluar capacidad predictiva
+#   fuera de muestra.
+#
+# La variable `particion` ya define esta separacion en la base, por lo que no
+# hacemos un split aleatorio adicional.
 
 train <- muestra_analisis |>
   dplyr::filter(particion == "entrenamiento")
@@ -62,32 +67,104 @@ train <- muestra_analisis |>
 validation <- muestra_analisis |>
   dplyr::filter(particion == "validacion")
 
-
-# # Verificamos el número de observaciones en cada conjunto. Luego, comprobamos que
-# los chunks asignados a entrenamiento y validacion sean los propuestos previamente.
-
+# Verificamos el numero de observaciones y los chunks asignados a cada grupo.
 nrow(train)
 nrow(validation)
 
 table(train$chunk_id)
 table(validation$chunk_id)
 
-# -----------------------------------------------------------------------------
-# 2. RE-ESTIMATE SECTION 2 BASELINE
-# -----------------------------------------------------------------------------
+
+# =============================================================================
+# 2. BASELINE DE LA SECCION 1, REESTIMADO SOBRE TRAIN
+# =============================================================================
+# La Seccion 1 estima el perfil edad-ingreso sobre la muestra COMPLETA, porque
+# alli la pregunta es descriptiva y no hay ninguna eleccion de modelo que
+# validar. Aqui la pregunta es otra: cuanto predice esa especificacion fuera de
+# muestra. Por eso se reestima sobre train y se evalua en validation, igual que
+# todos los demas modelos de esta seccion.
+#
+# Se reestiman las DOS especificaciones de la Seccion 1:
+#   (1) incondicional: ingreso_log ~ age + edad_2
+#   (2) condicional  : + horas + relab_grupo
+#
+# OJO CON LA EDAD PICO: la de esta seccion NO tiene por que coincidir con la
+# que reporta la Seccion 1. Aquella se estima sobre las 14.751 observaciones;
+# esta, sobre los chunks 1-7 solamente. Una diferencia entre las dos es
+# variabilidad muestral, no un error: son dos muestras distintas.
+
+base_s1_incond <- lm(
+  ingreso_log ~ age + edad_2,
+  data = train
+)
+
+base_s1_cond <- lm(
+  ingreso_log ~ age + edad_2 + horas + relab_grupo,
+  data = train
+)
+
+pred_s1_incond <- predict(base_s1_incond, newdata = validation)
+pred_s1_cond   <- predict(base_s1_cond,   newdata = validation)
+
+rmse_s1_incond <- rmse(validation$ingreso_log, pred_s1_incond)
+rmse_s1_cond   <- rmse(validation$ingreso_log, pred_s1_cond)
+
+rmse_s1_incond
+rmse_s1_cond
+
+# Edad pico sobre train, contrastada con la de la muestra completa. Se imprimen
+# las dos para dejar el contraste a la vista y que nadie lea la diferencia como
+# una inconsistencia entre secciones.
+
+edad_pico_train_incond <- edad_pico(base_s1_incond)
+edad_pico_train_cond   <- edad_pico(base_s1_cond)
+
+edad_pico_full_incond <- edad_pico(
+  lm(ingreso_log ~ age + edad_2, data = muestra_analisis)
+)
+edad_pico_full_cond <- edad_pico(
+  lm(ingreso_log ~ age + edad_2 + horas + relab_grupo,
+     data = muestra_analisis)
+)
+
+cat("\n--- edad pico: train (chunks 1-7) vs muestra completa ---\n")
+cat(sprintf("  incondicional  train %.2f | completa %.2f | dif %+.2f\n",
+            edad_pico_train_incond, edad_pico_full_incond,
+            edad_pico_train_incond - edad_pico_full_incond))
+cat(sprintf("  condicional    train %.2f | completa %.2f | dif %+.2f\n",
+            edad_pico_train_cond, edad_pico_full_cond,
+            edad_pico_train_cond - edad_pico_full_cond))
+
+
+# =============================================================================
+# 3. BASELINE DE LA SECCION 2, REESTIMADO SOBRE TRAIN
+# =============================================================================
+# El baseline de la Seccion 2 fue estimado originalmente como `m2`.
+# Para evaluar prediccion fuera de muestra, reestimamos exactamente la misma
+# especificacion usando exclusivamente las observaciones de train.
+
 m2_train <- update(
   m2,
   data = train
 )
+
 m2_train
+
+# Usamos los coeficientes estimados en train para predecir ingreso_log en
+# validation. Las observaciones de validation no participan en la estimacion.
 
 pred_m2 <- predict(
   m2_train,
   newdata = validation
 )
-# -----------------------------------------------------------------------------
-# 3. RMSE Section 2 Model
-#-----------------------------------------------------------------------------
+
+
+# El error predictivo del baseline se mide con el RMSE:
+#
+#   RMSE = sqrt(mean((y_observado - y_predicho)^2))
+#
+# Un RMSE menor indica predicciones mas cercanas a los valores observados,
+# siempre que comparemos la misma variable objetivo y la misma muestra.
 
 rmse_m2 <- rmse(
   validation$ingreso_log,
@@ -96,9 +173,29 @@ rmse_m2 <- rmse(
 
 rmse_m2
 
-#-----------------------------------------------------------------------------
-# 4. Development of 5 additional models
-#-----------------------------------------------------------------------------
+
+# =============================================================================
+# 4. CINCO ESPECIFICACIONES PREDICTIVAS ADICIONALES
+# =============================================================================
+# Partimos del baseline de la Seccion 2 y aumentamos progresivamente la
+# flexibilidad y la informacion disponible para el predictor.
+#
+# Todos los modelos se estiman sobre train. La seleccion NO se hace por R2,
+# significancia individual de coeficientes o ajuste dentro de muestra, sino
+# por RMSE en validation.
+
+
+# -----------------------------------------------------------------------------
+# MODEL 1: HOURS WORKED + EMPLOYMENT RELATIONSHIP
+# -----------------------------------------------------------------------------
+# Agregamos `horas` y `relab_grupo`.
+#
+# Motivacion:
+# Personas con caracteristicas demograficas similares pueden tener ingresos
+# diferentes por la cantidad de horas trabajadas y por su posicion o relacion
+# laboral.
+#
+# No introducimos una nueva no linealidad en este paso.
 
 mod_pred_1 <- lm(
   ingreso_log ~ mujer + age + edad_2 + educ + estrato +
@@ -106,10 +203,17 @@ mod_pred_1 <- lm(
   data = train
 )
 
-# al baseline de la Sección 2 le agregamos horas y relab_grupo.
-# La idea es incorporar información directa del empleo: cuánto trabaja la persona
-#y qué tipo de relación laboral tiene. No agregamos nueva no linealidad; el modelo sigue
-#con age^2 como término cuadrático.
+
+# -----------------------------------------------------------------------------
+# MODEL 2: NONLINEAR TENURE PROFILE
+# -----------------------------------------------------------------------------
+# Conservamos el Modelo 1 y agregamos antiguedad laboral en forma lineal y
+# cuadratica:
+#
+#   antiguedad_meses + antiguedad_meses^2
+#
+# Esto permite que la relacion entre antiguedad e ingreso sea curva en lugar
+# de imponer una pendiente constante.
 
 mod_pred_2 <- lm(
   ingreso_log ~ mujer + age + edad_2 + educ + estrato +
@@ -117,10 +221,16 @@ mod_pred_2 <- lm(
     antiguedad_meses + I(antiguedad_meses^2),
   data = train
 )
-#Mantenemos lo anterior y agregamos antiguedad_meses y antiguedad_meses^2.
-#Aquí sí introducimos una nueva no linealidad: permitimos que la relación 
-#Entre antigüedad e ingreso sea curva, no necesariamente constante.
 
+
+# -----------------------------------------------------------------------------
+# MODEL 3: EMPLOYMENT AND FIRM CHARACTERISTICS
+# -----------------------------------------------------------------------------
+# Agregamos informacion sobre la estructura del empleo y de la empresa:
+# `tamano_empresa`, `formal`, `cuenta_propia` y `micro_empresa`.
+#
+# Estas variables buscan capturar heterogeneidad laboral que no estaba
+# contenida en las caracteristicas demograficas del baseline.
 
 mod_pred_3 <- lm(
   ingreso_log ~ mujer + age + edad_2 + educ + estrato +
@@ -130,8 +240,19 @@ mod_pred_3 <- lm(
   data = train
 )
 
-#Agregamos tamano_empresa, formal, cuenta_propia y micro_empresa.
-#La idea es incorporar información sobre el tipo de empresa en la que trabaja la persona.
+
+# -----------------------------------------------------------------------------
+# MODEL 4: OCCUPATION
+# -----------------------------------------------------------------------------
+# Agregamos `oficio_grupo`.
+#
+# Como `oficio_grupo` es categorica, R la representa mediante varias dummies.
+# Aunque visualmente agregamos una sola variable, el numero de parametros del
+# modelo puede aumentar de forma importante.
+#
+# Motivacion:
+# La ocupacion puede contener informacion predictiva sobre diferencias de
+# ingreso entre tipos de trabajo.
 
 mod_pred_4 <- lm(
   ingreso_log ~ mujer + age + edad_2 + educ + estrato +
@@ -141,9 +262,19 @@ mod_pred_4 <- lm(
     oficio_grupo,
   data = train
 )
-# Agregamos oficio_grupo. Como es una variable categórica, R crea varias dummies. 
-#  Esto   permite capturar diferencias salariales entre ocupaciones. 
-#Puede aumentar bastante la complejidad del modelo aunque visualmente agreguemos una sola variable.
+
+
+# -----------------------------------------------------------------------------
+# MODEL 5: INTERACTIONS
+# -----------------------------------------------------------------------------
+# Agregamos `mujer:educ` y `age:educ`.
+#
+# Las interacciones permiten que la relacion entre una variable y la
+# prediccion dependa de otra. Por ejemplo, la asociacion entre educacion e
+# ingreso puede variar segun genero o edad.
+#
+# El modelo sigue siendo lineal en los parametros aunque incorpore
+# transformaciones e interacciones de los predictores.
 
 mod_pred_5 <- lm(
   ingreso_log ~ mujer + age + edad_2 + educ + estrato +
@@ -155,13 +286,12 @@ mod_pred_5 <- lm(
   data = train
 )
 
-#Agregamos interacciones como mujer:educ y age:educ. 
-#Aquí el cambio no es “más variables” solamente, sino permitir que la relación de una variable con 
-#El ingreso dependa de otra. Por ejemplo, que la relación entre educación e ingreso sea distinta entre hombres y mujeres.
 
-# -----------------------------------------------------------------------------
-# 5 VALIDATION PREDICTIONS
-# -----------------------------------------------------------------------------
+# =============================================================================
+# 5. PREDICCIONES SOBRE VALIDATION
+# =============================================================================
+# Generamos predicciones para las mismas observaciones de validation usando
+# cada uno de los cinco modelos estimados en train.
 
 pred_mod_1 <- predict(mod_pred_1, newdata = validation)
 pred_mod_2 <- predict(mod_pred_2, newdata = validation)
@@ -169,10 +299,37 @@ pred_mod_3 <- predict(mod_pred_3, newdata = validation)
 pred_mod_4 <- predict(mod_pred_4, newdata = validation)
 pred_mod_5 <- predict(mod_pred_5, newdata = validation)
 
+# Comprobacion diagnostica:
+# todos los vectores de prediccion deberian tener el mismo numero de
+# observaciones que validation y, idealmente, no contener NA.
 
-# -----------------------------------------------------------------------------
-# 6.VALIDATION RMSE
-# -----------------------------------------------------------------------------
+sapply(
+  list(
+    M1 = pred_mod_1,
+    M2 = pred_mod_2,
+    M3 = pred_mod_3,
+    M4 = pred_mod_4,
+    M5 = pred_mod_5
+  ),
+  length
+)
+
+sapply(
+  list(
+    M1 = pred_mod_1,
+    M2 = pred_mod_2,
+    M3 = pred_mod_3,
+    M4 = pred_mod_4,
+    M5 = pred_mod_5
+  ),
+  function(x) sum(is.na(x))
+)
+
+
+# =============================================================================
+# 6. RMSE DE VALIDACION DE LAS CINCO ESPECIFICACIONES
+# =============================================================================
+# Calculamos el RMSE de cada especificacion sobre el mismo validation set.
 
 rmse_mod_1 <- rmse(validation$ingreso_log, pred_mod_1)
 rmse_mod_2 <- rmse(validation$ingreso_log, pred_mod_2)
@@ -186,33 +343,186 @@ rmse_mod_3
 rmse_mod_4
 rmse_mod_5
 
-# Resultados de RMSE ordenados de menos a mayor.
 
- rmse_validation = c(
+# =============================================================================
+# 7. COLINEALIDAD PERFECTA Y MODELO 5 LIMPIO
+# =============================================================================
+# Durante la revision del Modelo 5 observamos coeficientes NA para
+# `cuenta_propia` y `micro_empresa`.
+#
+# `alias()` permite verificar si existen dependencias lineales exactas entre
+# columnas de la matriz de regresores.
+
+coef(mod_pred_5)[c("cuenta_propia", "micro_empresa")]
+alias(mod_pred_5)
+
+# En los resultados obtenidos:
+# - `cuenta_propia` es redundante con una categoria de `relab_grupo`.
+# - `micro_empresa` esta determinada por el intercepto y categorias de
+#   `tamano_empresa`.
+#
+# Por tanto, sus coeficientes no pueden identificarse de forma separada.
+# Eliminamos ambas variables redundantes y reestimamos el modelo.
+
+mod_pred_5_clean <- update(
+  mod_pred_5,
+  . ~ . - cuenta_propia - micro_empresa,
+  data = train
+)
+
+# Comprobamos que retirar variables redundantes no cambia las predicciones ni
+# el RMSE de validacion.
+
+pred_m5_clean <- predict(
+  mod_pred_5_clean,
+  newdata = validation
+)
+
+rmse_m5_clean <- rmse(
+  validation$ingreso_log,
+  pred_m5_clean
+)
+
+rmse_mod_5
+rmse_m5_clean
+
+# En nuestras ejecuciones ambos fueron 0.5813906, por lo que la limpieza no
+# produjo perdida de capacidad predictiva.
+
+
+# =============================================================================
+# 8. TABLA COMPARATIVA: BASELINES Y MODELOS NUEVOS
+# =============================================================================
+# Reunimos en una sola tabla los baselines de las Secciones 1 y 2 y las cinco
+# especificaciones nuevas. El enunciado pide exactamente esta comparacion: las
+# especificaciones de las secciones anteriores son la linea base contra la que
+# se miden los modelos predictivos.
+#
+# Se reporta el Modelo 5 LIMPIO. El original tiene dos coeficientes NA por
+# colinealidad perfecta (seccion 7) y produce predicciones identicas, de modo
+# que informar los dos duplicaria una misma fila.
+
+# MODELO NULO: predecir a todo el mundo la media de ingreso_log del
+# entrenamiento, sin un solo regresor. Es el piso contra el que hay que leer
+# todo lo demas: un modelo que no le gane a esta fila no esta aportando
+# informacion, solo esta reproduciendo el nivel promedio. La media se toma
+# SOBRE TRAIN, no sobre validation, porque usar la media del fold de
+# validacion seria mirar la respuesta antes de predecirla.
+
+pred_nulo <- rep(mean(train$ingreso_log), nrow(validation))
+rmse_nulo <- rmse(validation$ingreso_log, pred_nulo)
+
+rmse_nulo
+
+resultados_rmse <- tibble::tibble(
+  modelo = c(
+    "Media (sin regresores)",
+    "Baseline S1 incondicional",
+    "Baseline S1 condicional",
+    "Baseline S2",
+    "Modelo 1",
+    "Modelo 2",
+    "Modelo 3",
+    "Modelo 4",
+    "Modelo 5 (limpio)"
+  ),
+  rmse_validation = c(
+    rmse_nulo,
+    rmse_s1_incond,
+    rmse_s1_cond,
     rmse_m2,
     rmse_mod_1,
     rmse_mod_2,
     rmse_mod_3,
     rmse_mod_4,
-    rmse_mod_5
+    rmse_m5_clean
   )
+) |>
+  dplyr::mutate(
+    reduccion_vs_nulo = 1 - rmse_validation / rmse_nulo
+  ) |>
   dplyr::arrange(rmse_validation)
 
-resultados_rmse
+# `reduccion_vs_nulo` es la fraccion del error del modelo nulo que la
+# especificacion elimina. Responde la pregunta que motiva la fila nula:
+# cuanto aporta cada modelo por encima de no saber nada.
 
-# -----------------------------------------------------------------------------
-# 7. LOOCV - PROVISIONAL BEST MODEL
-# -----------------------------------------------------------------------------
+# print() explicito: al correr por 99_run_all.R el script llega via
+# source(), que no auto-imprime objetos sueltos. Sin esto la tabla de
+# resultados no aparece en el log de la corrida canonica.
 
-rmse_loocv_m5 <- rmse_loocv(mod_pred_5)
+print(resultados_rmse)
+
+# El ganador es la primera fila de la tabla. Se lee del objeto en vez de
+# escribirlo a mano, para que un cambio de muestra no deje el texto desfasado.
+
+modelo_ganador <- resultados_rmse$modelo[1]
+rmse_ganador   <- resultados_rmse$rmse_validation[1]
+
+cat(sprintf("\n--- ganador por RMSE de validacion: %s (%.4f) ---\n",
+            modelo_ganador, rmse_ganador))
+
+# El LOOCV y la importancia de variables de las secciones siguientes se
+# calculan sobre el Modelo 5 limpio. Si el ganador dejara de ser ese modelo,
+# habria que repetirlos sobre el nuevo ganador: este stopifnot() detiene la
+# corrida en vez de dejar que el resto de la seccion analice un modelo que ya
+# no es el elegido.
+
+stopifnot(
+  "El ganador ya no es el Modelo 5 limpio: repetir LOOCV e importancia." =
+    modelo_ganador == "Modelo 5 (limpio)"
+)
+
+
+# =============================================================================
+# 9. LOOCV DEL MEJOR MODELO
+# =============================================================================
+# Comparamos el desempeño del mejor modelo provisional usando LOOCV sobre
+# train.
+#
+# `rmse_loocv()` usa el atajo exacto de OLS basado en leverage:
+#
+#   e_(-i) = e_i / (1 - h_ii)
+#
+# Esto evita reestimar el modelo n veces.
+
+rmse_loocv_m5 <- rmse_loocv(mod_pred_5_clean)
 
 rmse_loocv_m5
 
-#-----------------------------------------------------------------------------
-# 8. IMPORTANCE OF VARIABLES
-#-----------------------------------------------------------------------------  
+# En la ejecucion previa, el Modelo 5 original produjo un RMSE LOOCV de
+# 0.5559649. El valor del modelo limpio debe verificarse al correr el script
+# completo desde una sesion nueva.
+
+
+# =============================================================================
+# 10. IMPORTANCIA DE VARIABLES
+# =============================================================================
+# Definimos la importancia predictiva de una variable j como:
+#
+#   Importance_j = RMSE_sin_j - RMSE_modelo_completo
+#
+# Procedimiento:
+#   1. Retiramos la variable (o todo su bloque de terminos).
+#   2. Reestimamos el modelo sobre train.
+#   3. Predecimos sobre el mismo validation.
+#   4. Calculamos cuanto aumenta el RMSE.
+#
+# Cuanto mayor sea el aumento del RMSE, mayor es la contribucion predictiva
+# marginal de esa variable dentro de esta especificacion.
+#
+# Esta es una medida de importancia PREDICTIVA, no una afirmacion causal.
+#
+# Para variables presentes en cuadrados o interacciones eliminamos todo el
+# bloque asociado, de modo que la comparacion represente la variable completa.
+
+
+# -----------------------------------------------------------------------------
+# 10.1 OCCUPATION
+# -----------------------------------------------------------------------------
+
 mod_sin_oficio <- update(
-  mod_pred_5,
+  mod_pred_5_clean,
   . ~ . - oficio_grupo,
   data = train
 )
@@ -227,16 +537,18 @@ rmse_sin_oficio <- rmse(
   pred_sin_oficio
 )
 
-importancia_oficio <- rmse_sin_oficio - rmse_mod_5
+importancia_oficio <- rmse_sin_oficio - rmse_m5_clean
 
 rmse_sin_oficio
 importancia_oficio
 
-#Manteniendo el resto de la especificación de M5, eliminar oficio_grupo aumenta el RMSE de validación de 0.5814 a 0.6097. Por tanto, 
-#la ocupación aporta información relevante para predecir el ingreso laboral.
+
+# -----------------------------------------------------------------------------
+# 10.2 HOURS WORKED
+# -----------------------------------------------------------------------------
 
 mod_sin_horas <- update(
-  mod_pred_5,
+  mod_pred_5_clean,
   . ~ . - horas,
   data = train
 )
@@ -251,13 +563,18 @@ rmse_sin_horas <- rmse(
   pred_sin_horas
 )
 
-importancia_horas <- rmse_sin_horas - rmse_mod_5
+importancia_horas <- rmse_sin_horas - rmse_m5_clean
 
 rmse_sin_horas
 importancia_horas
 
+
+# -----------------------------------------------------------------------------
+# 10.3 EMPLOYMENT RELATIONSHIP
+# -----------------------------------------------------------------------------
+
 mod_sin_relab <- update(
-  mod_pred_5,
+  mod_pred_5_clean,
   . ~ . - relab_grupo,
   data = train
 )
@@ -272,13 +589,18 @@ rmse_sin_relab <- rmse(
   pred_sin_relab
 )
 
-importancia_relab <- rmse_sin_relab - rmse_mod_5
+importancia_relab <- rmse_sin_relab - rmse_m5_clean
 
 rmse_sin_relab
 importancia_relab
 
+
+# -----------------------------------------------------------------------------
+# 10.4 FIRM SIZE
+# -----------------------------------------------------------------------------
+
 mod_sin_tamano <- update(
-  mod_pred_5,
+  mod_pred_5_clean,
   . ~ . - tamano_empresa,
   data = train
 )
@@ -293,48 +615,41 @@ rmse_sin_tamano <- rmse(
   pred_sin_tamano
 )
 
-importancia_tamano <- rmse_sin_tamano - rmse_mod_5
+importancia_tamano <- rmse_sin_tamano - rmse_m5_clean
 
 rmse_sin_tamano
 importancia_tamano
 
-mod_sin_cuenta <- update(
-  mod_pred_5,
-  . ~ . - cuenta_propia,
+
+# -----------------------------------------------------------------------------
+# 10.5 FORMAL EMPLOYMENT
+# -----------------------------------------------------------------------------
+
+mod_sin_formal <- update(
+  mod_pred_5_clean,
+  . ~ . - formal,
   data = train
 )
 
-pred_sin_cuenta <- predict(
-  mod_sin_cuenta,
+pred_sin_formal <- predict(
+  mod_sin_formal,
   newdata = validation
 )
 
-rmse_sin_cuenta <- rmse(
+rmse_sin_formal <- rmse(
   validation$ingreso_log,
-  pred_sin_cuenta
+  pred_sin_formal
 )
 
-# 
+importancia_formal <- rmse_sin_formal - rmse_m5_clean
 
-importancia_cuenta <- rmse_sin_cuenta - rmse_mod_5
+rmse_sin_formal
+importancia_formal
 
-rmse_sin_cuenta
-importancia_cuenta
-
-# Esta variable tiene colinealidad perfecta.
-
-mod_pred_5_clean <- update(
-  mod_pred_5,
-  . ~ . - cuenta_propia - micro_empresa,
-  data = train
-)
-# Eliminamos la variable del maneja original.
 
 # -----------------------------------------------------------------------------
-# VARIABLE IMPORTANCE: ESTRATO
+# 10.6 SOCIOECONOMIC STRATUM
 # -----------------------------------------------------------------------------
-# Eliminamos estrato del Modelo 5 limpio y evaluamos cuanto aumenta
-# el RMSE de validacion.
 
 mod_sin_estrato <- update(
   mod_pred_5_clean,
@@ -346,11 +661,51 @@ pred_sin_estrato <- predict(
   mod_sin_estrato,
   newdata = validation
 )
+
+rmse_sin_estrato <- rmse(
+  validation$ingreso_log,
+  pred_sin_estrato
+)
+
+importancia_estrato <- rmse_sin_estrato - rmse_m5_clean
+
+rmse_sin_estrato
+importancia_estrato
+
+
 # -----------------------------------------------------------------------------
-# VARIABLE IMPORTANCE: MUJER
+# 10.7 TENURE
 # -----------------------------------------------------------------------------
-# Mujer aparece como efecto principal y tambien interactua con educacion.
-# Para medir su importancia completa eliminamos ambos componentes.
+# Antiguedad aparece de forma lineal y cuadratica. Para medir la importancia
+# de la variable completa eliminamos ambos terminos.
+
+mod_sin_antiguedad <- update(
+  mod_pred_5_clean,
+  . ~ . - antiguedad_meses - I(antiguedad_meses^2),
+  data = train
+)
+
+pred_sin_antiguedad <- predict(
+  mod_sin_antiguedad,
+  newdata = validation
+)
+
+rmse_sin_antiguedad <- rmse(
+  validation$ingreso_log,
+  pred_sin_antiguedad
+)
+
+importancia_antiguedad <- rmse_sin_antiguedad - rmse_m5_clean
+
+rmse_sin_antiguedad
+importancia_antiguedad
+
+
+# -----------------------------------------------------------------------------
+# 10.8 GENDER
+# -----------------------------------------------------------------------------
+# `mujer` aparece como efecto principal y en la interaccion `mujer:educ`.
+# Para medir la importancia del bloque asociado a genero eliminamos ambos.
 
 mod_sin_mujer <- update(
   mod_pred_5_clean,
@@ -372,18 +727,10 @@ importancia_mujer <- rmse_sin_mujer - rmse_m5_clean
 
 rmse_sin_mujer
 importancia_mujer
-rmse_sin_estrato <- rmse(
-  validation$ingreso_log,
-  pred_sin_estrato
-)
 
-importancia_estrato <- rmse_sin_estrato - rmse_m5_clean
-
-rmse_sin_estrato
-importancia_estrato
 
 # -----------------------------------------------------------------------------
-# VARIABLE IMPORTANCE: EDAD
+# 10.9 AGE
 # -----------------------------------------------------------------------------
 # Edad aparece como termino lineal, cuadratico y en interaccion con educacion.
 # Para medir su importancia completa eliminamos los tres componentes.
@@ -411,34 +758,7 @@ importancia_age
 
 
 # -----------------------------------------------------------------------------
-# VARIABLE IMPORTANCE: EDAD
-# -----------------------------------------------------------------------------
-# Edad aparece como termino lineal, cuadratico y en interaccion con educacion.
-# Para medir su importancia completa eliminamos los tres componentes.
-
-mod_sin_age <- update(
-  mod_pred_5_clean,
-  . ~ . - age - edad_2 - age:educ,
-  data = train
-)
-
-pred_sin_age <- predict(
-  mod_sin_age,
-  newdata = validation
-)
-
-rmse_sin_age <- rmse(
-  validation$ingreso_log,
-  pred_sin_age
-)
-
-importancia_age <- rmse_sin_age - rmse_m5_clean
-
-rmse_sin_age
-importancia_age
-
-# -----------------------------------------------------------------------------
-# VARIABLE IMPORTANCE: EDUCACION
+# 10.10 EDUCATION
 # -----------------------------------------------------------------------------
 # Educacion aparece como efecto principal y en interacciones con mujer y edad.
 # Para medir su importancia completa eliminamos todos esos componentes.
@@ -464,27 +784,87 @@ importancia_educ <- rmse_sin_educ - rmse_m5_clean
 rmse_sin_educ
 importancia_educ
 
-# -----------------------------------------------------------------------------
-# 8. DEPENDENCE OF PREDICTIONS ON THE MOST IMPORTANT VARIABLE
-# -----------------------------------------------------------------------------
 
-coef(mod_pred_5_clean)["horas"]
+# -----------------------------------------------------------------------------
+# 10.11 VARIABLE IMPORTANCE RANKING
+# -----------------------------------------------------------------------------
+# Ordenamos todas las variables evaluadas por el aumento que generan en el
+# RMSE cuando se eliminan del modelo.
+#
+# `cuenta_propia` y `micro_empresa` no se incluyen porque fueron eliminadas por
+# colinealidad perfecta y no tienen una contribucion separadamente
+# identificable dentro de esta especificacion.
+
+resultados_importancia <- tibble::tibble(
+  variable = c(
+    "horas",
+    "oficio_grupo",
+    "estrato",
+    "age",
+    "antiguedad_meses",
+    "formal",
+    "educ",
+    "mujer",
+    "relab_grupo",
+    "tamano_empresa"
+  ),
+  aumento_rmse = c(
+    importancia_horas,
+    importancia_oficio,
+    importancia_estrato,
+    importancia_age,
+    importancia_antiguedad,
+    importancia_formal,
+    importancia_educ,
+    importancia_mujer,
+    importancia_relab,
+    importancia_tamano
+  )
+) |>
+  dplyr::arrange(dplyr::desc(aumento_rmse))
+
+print(resultados_importancia)
+
+# Con los resultados obtenidos previamente, `horas` presenta el mayor aumento
+# del RMSE al ser eliminada, seguida muy de cerca por `oficio_grupo` y
+# `estrato`. Por nuestra definicion, `horas` es el predictor mas importante.
+
 
 # =============================================================================
-# 8. DEPENDENCE OF PREDICTIONS ON HOURS WORKED
+# 11. DEPENDENCIA DE LAS PREDICCIONES RESPECTO DE HORAS
 # =============================================================================
-# `horas` was identified as the most important predictor according to the
-# increase in validation RMSE when the variable was removed.
+# Despues de identificar `horas` como la variable mas importante, analizamos
+# como cambian las predicciones del modelo cuando cambia esta variable.
 #
-# We now characterize how the predictions of the best model depend on hours
-# worked.
+# En el Modelo 5 limpio, `horas` entra linealmente y no participa en
+# interacciones. Por tanto, su pendiente en la prediccion de ingreso_log es
+# constante.
+
+coef_horas <- coef(mod_pred_5_clean)["horas"]
+coef_horas
+
+# En nuestra ejecucion previa:
+#   beta_horas = 0.01584108
 #
-# For each possible value of `horas`, we keep all other characteristics of
-# the validation observations unchanged, replace only `horas`, generate
-# predictions, and calculate the average predicted log income.
+# Esto significa que una hora adicional esta asociada con un aumento de
+# 0.01584 log-points en el ingreso predicho, manteniendo constantes las demas
+# caracteristicas del modelo.
 #
-# We restrict the graph to the central 90% of observed hours to avoid letting
-# extreme observations dominate the visualization.
+# Esta interpretacion describe una asociacion predictiva; no implica
+# causalidad.
+
+
+# -----------------------------------------------------------------------------
+# 11.1 PREDICTION DEPENDENCE CURVE
+# -----------------------------------------------------------------------------
+# Para cada valor de horas:
+#   1. mantenemos intactas las demas caracteristicas observadas en validation;
+#   2. reemplazamos solo `horas` por un valor comun h;
+#   3. generamos predicciones para todas las observaciones;
+#   4. promediamos las predicciones.
+#
+# Restringimos el grafico al 5%-95% de la distribucion observada de horas para
+# evitar que valores extremos dominen la visualizacion.
 
 horas_grid <- seq(
   from = quantile(validation$horas, 0.05, na.rm = TRUE),
@@ -498,16 +878,16 @@ pred_promedio_horas <- sapply(
 
     datos_h <- validation
 
-    # Change only hours worked
+    # Cambiamos solamente las horas trabajadas.
     datos_h$horas <- h
 
-    # Predict log income with Model 5
+    # Prediccion del Modelo 5 limpio.
     pred_h <- predict(
       mod_pred_5_clean,
       newdata = datos_h
     )
 
-    # Average prediction
+    # Promedio de las predicciones para ese valor de horas.
     mean(pred_h, na.rm = TRUE)
   }
 )
@@ -517,7 +897,7 @@ dependencia_horas <- tibble::tibble(
   ingreso_log_predicho = pred_promedio_horas
 )
 
-ggplot2::ggplot(
+grafica_horas <- ggplot2::ggplot(
   dependencia_horas,
   ggplot2::aes(
     x = horas,
@@ -526,10 +906,132 @@ ggplot2::ggplot(
 ) +
   ggplot2::geom_line(linewidth = 1) +
   ggplot2::labs(
-    x = "Hours worked",
-    y = "Average predicted log income",
-    title = "Predicted Labor Income and Hours Worked"
+    x = "Horas trabajadas por semana",
+    y = "Ingreso laboral mensual predicho (log, promedio)",
+    title = "Ingreso predicho y horas trabajadas"
   ) +
   ggplot2::theme_minimal()
 
-  
+# La figura se exporta a views/figures/ como todas las demas del proyecto. Sin
+# esto, `grafica_horas` solo se imprime al dispositivo grafico y una corrida
+# por Rscript deja un Rplots.pdf suelto en la raiz del repositorio.
+
+guardar_fig(grafica_horas, "dependencia_horas.png")
+
+
+# =============================================================================
+# 12. EXPORTACION DE TABLAS Y CIFRAS PARA EL DECK
+# =============================================================================
+# El deck de la Seccion 3 no calcula nada: incluye estas salidas con \input{}.
+# Ninguna cifra se teclea en las laminas.
+
+# Diagnostico para la autoridad tributaria: quienes quedan fuera del alcance
+# del modelo. No son ruido, son un grupo con perfil propio, y ninguna
+# especificacion de esta seccion puede senalarlos porque no estan en la
+# muestra sobre la que se estima.
+
+crudo_pred <- do.call(
+  rbind,
+  lapply(
+    seq_len(10),
+    function(i) {
+      readRDS(here::here("stores", "raw", sprintf("chunk_%02d.rds", i)))
+    }
+  )
+)
+
+sin_ingreso_pred <- crudo_pred |>
+  dplyr::filter(ocu == 1, age >= 18, is.na(y_total_m), !is.na(impaes))
+
+pct_indep_sin_ingreso <- 100 * mean(
+  sin_ingreso_pred$relab %in% c(4, 5),
+  na.rm = TRUE
+)
+
+# --- Tabla 1: RMSE de validacion de todas las especificaciones --------------
+
+tabla_rmse <- resultados_rmse |>
+  dplyr::mutate(
+    rmse_validation   = num_es(rmse_validation, 4),
+    reduccion_vs_nulo = num_es(100 * reduccion_vs_nulo, 1)
+  ) |>
+  dplyr::rename(
+    `Especificacion`             = modelo,
+    `RMSE validacion`            = rmse_validation,
+    `Reduccion vs. nulo (pp)`    = reduccion_vs_nulo
+  )
+
+# datasummary_df() viene de modelsummary, que ya esta en 00_packages.R. Se usa
+# en vez de tinytable directamente para no agregar una dependencia nueva.
+
+modelsummary::datasummary_df(
+  tabla_rmse,
+  output = here::here("views", "tables", "rmse_pred.tex"),
+  notes = paste(
+    "Estimacion sobre chunks 1-7; RMSE sobre chunks 8-10. El modelo nulo",
+    "predice la media de entrenamiento a todas las observaciones."
+  )
+)
+
+# --- Tabla 2: importancia de variables --------------------------------------
+
+tabla_importancia <- resultados_importancia |>
+  dplyr::mutate(aumento_rmse = num_es(aumento_rmse, 4)) |>
+  dplyr::rename(
+    `Variable`                = variable,
+    `Aumento del RMSE`        = aumento_rmse
+  )
+
+modelsummary::datasummary_df(
+  tabla_importancia,
+  output = here::here("views", "tables", "importancia_pred.tex"),
+  notes = paste(
+    "Aumento del RMSE de validacion al retirar la variable del Modelo 5",
+    "limpio y reestimar sobre entrenamiento."
+  )
+)
+
+# --- Macros con las cifras del texto ----------------------------------------
+
+cifras_pred <- c(
+  sprintf("\\newcommand{\\NTrain}{%s}",
+          formatC(nrow(train), format = "d", big.mark = ".")),
+  sprintf("\\newcommand{\\NValidacion}{%s}",
+          formatC(nrow(validation), format = "d", big.mark = ".")),
+  sprintf("\\newcommand{\\ModeloGanador}{%s}", modelo_ganador),
+  sprintf("\\newcommand{\\RMSEGanador}{%s}", num_es(rmse_ganador, 4)),
+  sprintf("\\newcommand{\\RMSENulo}{%s}", num_es(rmse_nulo, 4)),
+  sprintf("\\newcommand{\\RMSELoocv}{%s}", num_es(rmse_loocv_m5, 4)),
+  sprintf("\\newcommand{\\BrechaLoocv}{%s}",
+          num_es(rmse_ganador - rmse_loocv_m5, 4, signo = TRUE)),
+  sprintf("\\newcommand{\\ReduccionGanador}{%s}",
+          num_es(100 * (1 - rmse_ganador / rmse_nulo), 1)),
+  sprintf("\\newcommand{\\ReduccionSUnoIncond}{%s}",
+          num_es(100 * (1 - rmse_s1_incond / rmse_nulo), 1)),
+  sprintf("\\newcommand{\\RMSESUnoIncond}{%s}", num_es(rmse_s1_incond, 4)),
+  sprintf("\\newcommand{\\RMSESUnoCond}{%s}", num_es(rmse_s1_cond, 4)),
+  sprintf("\\newcommand{\\RMSESDos}{%s}", num_es(rmse_m2, 4)),
+  sprintf("\\newcommand{\\VarImportante}{%s}",
+          resultados_importancia$variable[1]),
+  sprintf("\\newcommand{\\ImportanciaTop}{%s}",
+          num_es(resultados_importancia$aumento_rmse[1], 4)),
+  sprintf("\\newcommand{\\ImportanciaSegunda}{%s}",
+          num_es(resultados_importancia$aumento_rmse[2], 4)),
+  sprintf("\\newcommand{\\CoefHorasPred}{%s}",
+          num_es(unname(coef_horas), 5)),
+  sprintf("\\newcommand{\\PicoTrainIncond}{%s}",
+          num_es(edad_pico_train_incond, 2)),
+  sprintf("\\newcommand{\\PicoTrainCond}{%s}",
+          num_es(edad_pico_train_cond, 2)),
+  sprintf("\\newcommand{\\NSinIngresoPred}{%s}",
+          formatC(nrow(sin_ingreso_pred), format = "d", big.mark = ".")),
+  sprintf("\\newcommand{\\PctIndepSinIngreso}{%s}",
+          num_es(pct_indep_sin_ingreso, 1))
+)
+
+writeLines(
+  cifras_pred,
+  here::here("views", "tables", "cifras_pred.tex")
+)
+
+message("rmse_pred.tex, importancia_pred.tex y cifras_pred.tex written.")

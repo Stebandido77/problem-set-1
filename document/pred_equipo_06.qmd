@@ -1,0 +1,274 @@
+---
+title: "Seccion 3: Prediccion del Ingreso Laboral"
+subtitle: "Problem Set 1 — MECA 4107 — Equipo 06"
+author: "Neislen Garcia | Diego Felipe Rodriguez | Esteban Labastidas"
+format:
+  beamer:
+    theme: metropolis
+    slide-level: 2
+lang: es
+header-includes:
+  # Requisito de las tablas que exporta modelsummary (backend tinytable): sin
+  # esto el deck falla al compilar en cuanto se incluye una con \input{}.
+  - \usepackage{tabularray}
+  - \usepackage{float}
+  - \usepackage{graphicx}
+  - \usepackage[normalem]{ulem}
+  - \UseTblrLibrary{booktabs}
+  - \UseTblrLibrary{siunitx}
+  - \newcommand{\tinytableTabularrayUnderline}[1]{\underline{#1}}
+  - \newcommand{\tinytableTabularrayStrikeout}[1]{\sout{#1}}
+  - \NewTableCommand{\tinytableDefineColor}[3]{\definecolor{#1}{#2}{#3}}
+  # Las cifras del texto entran como macros desde el pipeline: ninguna se
+  # teclea en estas laminas. Las escribe scripts/30_prediction.R.
+  - \input{../views/tables/cifras_pred.tex}
+  - \input{../views/tables/cifras_deriva.tex}
+---
+
+## Result Overview
+
+\textbf{El mejor modelo es el \ModeloGanador, con RMSE de validacion \RMSEGanador.}
+
+Reduce el error del modelo nulo en \textbf{\ReduccionGanador\%}.
+
+- El **perfil de edad de la Seccion 1 casi no predice**: RMSE
+  \RMSESUnoIncond\ contra \RMSENulo\ del modelo nulo, apenas
+  \textbf{\ReduccionSUnoIncond\%} de reduccion.
+- La variable mas importante es \textbf{\VarImportante}: quitarla sube el RMSE en
+  \ImportanciaTop.
+- LOOCV sobre entrenamiento da \RMSELoocv, **mejor** que el RMSE de validacion
+  (\BrechaLoocv). La diferencia no es sobreajuste: son periodos distintos.
+
+\vfill
+\footnotesize GEIH 2018, Bogota. Entrenamiento: chunks 1-7 (N = \NTrain).
+Validacion: chunks 8-10 (N = \NValidacion).
+
+## Pregunta y motivacion
+
+**¿Que tan bien se puede predecir el ingreso laboral de una persona, y donde
+fallan las predicciones?**
+
+Esta seccion cambia el objetivo. En las Secciones 1 y 2 el interes estaba en
+**interpretar** un coeficiente; aqui esta en \textbf{acertarle a $\log(w)$} en gente
+que el modelo no vio.
+
+Para una autoridad tributaria la diferencia es operativa: no le sirve saber que
+el ingreso sube con la edad, le sirve poder decir *"esta persona reporta mucho
+menos de lo que su perfil predice"*.
+
+Ese es el eje del problem set: **lo interpretable y lo predictivo no son lo
+mismo**, y esta seccion lo mide.
+
+## El corte es temporal, no aleatorio
+
+Los 10 chunks estan ordenados por mes de encuesta. El corte 1-7 / 8-10 que fija
+el enunciado es entonces un corte en el **tiempo**. Dos consecuencias:
+
+- **`mes` y `chunk_id` no pueden ser predictores**: cualquiera de los dos
+  filtra la particion y el RMSE dejaria de medir error fuera de muestra.
+- Leerlo como error fuera de muestra ordinario exige que **no haya salto de
+  nivel** entre los dos folds.
+
+![](../views/figures/deriva_temporal.png){height=42%}
+
+## Sin salto de diciembre
+
+La sospecha natural es la **prima de servicios**: si diciembre trajera un salto
+de ingreso, el fold de validacion no seria comparable con el de entrenamiento.
+
+**No lo hay.** Las dos especificaciones coinciden:
+
+- Diciembre como dummy sola: $b =$ \CoefDicSolo\ ($p =$ \PDicSolo).
+- Sobre una tendencia mensual: $b =$ \CoefDicTend\ ($p =$ \PDicTend).
+
+Ninguna se distingue de cero, porque la prima ya entra en `y_total_m`
+**mensualizada**.
+
+\vspace{0.4em}
+El mismo razonamiento vale para agrupar `oficio`: el umbral de 30
+observaciones se calcula **solo sobre los chunks 1-7** y despues se aplica a
+los 8-10, para que el fold de validacion nunca informe la codificacion.
+
+## Las cinco especificaciones
+
+\small
+
+Todas parten del baseline de la Seccion 2 y agregan informacion de forma
+progresiva y economicamente motivada.
+
+| | Que agrega | Por que |
+|---|---|---|
+| **M1** | horas, posicion | Cuanto trabaja y en que relacion |
+| **M2** | antiguedad y su cuadrado | Retorno a la experiencia, no lineal |
+| **M3** | tamano de empresa, formalidad | Prima por tamano y formalidad |
+| **M4** | oficio (agrupado) | Diferencias entre ocupaciones |
+| **M5** | mujer$\times$educ, edad$\times$educ | El retorno a educar varia |
+
+\normalsize
+\footnotesize Estimadas solo sobre entrenamiento; se eligen por RMSE de
+validacion.
+
+## Colinealidad perfecta en el Modelo 5
+
+Al revisar M5 aparecieron **coeficientes `NA`** en `cuenta_propia` y
+`micro_empresa`. `alias()` confirma por que:
+
+- `cuenta_propia` es redundante con una categoria de la posicion ocupacional.
+- `micro_empresa` queda determinada por el intercepto y el tamano de empresa.
+
+**No son variables sin efecto: son combinaciones lineales exactas de columnas
+que ya estaban.** Sus coeficientes no son identificables por separado.
+
+Se retiran y se reestima el **Modelo 5 limpio**. Las predicciones son
+**identicas** — se verifico que el RMSE coincide en las diez cifras decimales —
+de modo que la limpieza no cuesta capacidad predictiva: solo deja un modelo
+interpretable.
+
+## RMSE de validacion: todas las especificaciones
+
+\scriptsize
+\input{../views/tables/rmse_pred.tex}
+
+\normalsize
+\vspace{-0.4em}
+\footnotesize El **modelo nulo** predice a todos la media de entrenamiento. Es
+el piso: un modelo que no le gane no aporta informacion.
+
+## El hallazgo: interpretable no es predictivo
+
+\textbf{El perfil edad-ingreso de la Seccion 1 le quita al modelo nulo apenas \ReduccionSUnoIncond\% del error.}
+
+Su RMSE (\RMSESUnoIncond) esta a menos de tres centesimas de no usar **ningun**
+regresor (\RMSENulo).
+
+\vspace{0.4em}
+Y sin embargo esa misma especificacion produjo la edad pico de la Seccion 1,
+con un intervalo estrecho y una interpretacion economica nitida.
+
+**Las dos cosas son ciertas a la vez:**
+
+- La edad **ordena bien el ingreso en promedio**: el perfil es real, concavo y
+  se estima con precision.
+- La edad **casi no predice a nivel individual**: la varianza entre personas de
+  la misma edad es de un orden mucho mayor que la que hay entre edades.
+
+Esta es exactamente la tension que plantea el enunciado, y aqui esta medida.
+
+## LOOCV contra validacion
+
+| Medida | Muestra | RMSE |
+|---|---|---|
+| Validacion | chunks 8-10 (N = \NValidacion) | \RMSEGanador |
+| LOOCV | entrenamiento (N = \NTrain) | \RMSELoocv |
+
+\textbf{El LOOCV es \BrechaLoocv\ mejor.} Que el error dentro de muestra sea menor
+no sorprende; lo informativo es **cuan poco** difieren.
+
+- Si la brecha fuera grande, indicaria sobreajuste al periodo de
+  entrenamiento.
+- Al ser pequena, dice que el modelo **generaliza a un periodo distinto**.
+
+\footnotesize LOOCV usa el atajo exacto de MCO por leverage,
+$e_{(-i)} = e_i / (1 - h_{ii})$, que da el resultado exacto sin reajustar el
+modelo \NTrain\ veces.
+
+## Como medimos importancia, y por que asi
+
+**Definicion.** La importancia de la variable $j$ es cuanto **empeora el RMSE
+de validacion** al sacarla:
+$$\text{Importancia}_j = \text{RMSE}_{\sin j} - \text{RMSE}_{\text{completo}}$$
+
+Se retira el **bloque completo** de terminos de esa variable — cuadrados e
+interacciones incluidos — y se reestima sobre entrenamiento.
+
+**Por que esta medida y no otra.** El criterio de la seccion es predictivo, de
+modo que la importancia debe medirse en la misma moneda: error fuera de
+muestra.
+
+- El **valor $p$** mide precision de un coeficiente, no aporte predictivo. Con
+  N grande casi todo es significativo.
+- El **coeficiente estandarizado** depende de la escala y no dice nada sobre
+  error de prediccion.
+
+\footnotesize Es importancia **predictiva marginal dentro de esta
+especificacion**, no una afirmacion causal.
+
+## Ranking de importancia
+
+\scriptsize
+\input{../views/tables/importancia_pred.tex}
+
+\normalsize
+\vspace{-0.3em}
+\footnotesize \textbf{\VarImportante} encabeza (\ImportanciaTop), seguida del
+oficio (\ImportanciaSegunda). Coherente con el outcome: `y_total_m` es
+ingreso **mensual**, no salario por hora.
+
+## Como dependen las predicciones de las horas
+
+![](../views/figures/dependencia_horas.png){height=62%}
+
+\footnotesize Para cada valor de horas se mantienen intactas las demas
+caracteristicas de validacion, se reemplaza solo `horas` y se promedian las
+predicciones. La recta es **lineal por construccion**: `horas` entra sin
+cuadrados ni interacciones. Pendiente: \CoefHorasPred\ log points por hora
+semanal.
+
+## Donde fallan las predicciones
+
+El modelo predice el ingreso de quien **reporta** ingreso. No puede senalar a
+quien declara cero: esas personas **no estan en la muestra de estimacion**.
+
+Son \NSinIngresoPred\ ocupados adultos a quienes el DANE si imputa ingreso, y
+**no son un grupo cualquiera**: \PctIndepSinIngreso\% son independientes —
+cuenta propia o patrones — es decir, gente cuyo ingreso no pasa por una nomina.
+
+\vspace{0.4em}
+**Para una autoridad tributaria ese es el punto ciego que importa.** El modelo
+es util para detectar sub-reporte *dentro* de la poblacion que reporta; el
+grupo con mayor riesgo de no reportar del todo queda, por construccion, fuera
+de su alcance.
+
+Ampliar la muestra a ese grupo exige un modelo de la decision de reportar, que
+es un problema distinto del de esta seccion.
+
+## Conclusion
+
+1. El \textbf{\ModeloGanador} gana con RMSE \RMSEGanador, un \textbf{\ReduccionGanador\%}
+   por debajo del modelo nulo.
+2. **Interpretable no es predictivo**: el perfil de edad de la Seccion 1 reduce
+   el error apenas \ReduccionSUnoIncond\%, y aun asi da una edad pico precisa e
+   interpretable.
+3. **LOOCV y validacion casi coinciden** (\RMSELoocv\ vs. \RMSEGanador): el
+   modelo generaliza a un periodo distinto, no esta sobreajustado.
+4. La variable mas importante es \textbf{\VarImportante}, medida por aumento del
+   RMSE de validacion al retirarla.
+5. **El punto ciego**: \NSinIngresoPred\ ocupados sin ingreso reportado,
+   \PctIndepSinIngreso\% independientes, quedan fuera del alcance del modelo.
+
+<!-- NOTA DE REPRODUCCION -------------------------------------------------
+
+Este deck NO calcula nada: solo incluye tablas y figuras que ya produjo el
+pipeline. Antes de renderizarlo hay que correr, desde la raiz del proyecto:
+
+    Rscript scripts/99_run_all.R
+
+Eso deja las figuras en `views/figures/` y las tablas en `views/tables/`.
+
+Ninguna cifra se transcribe a mano. Las del texto entran como macros de LaTeX
+desde `views/tables/cifras_pred.tex`, que escribe `30_prediction.R`: si la
+muestra cambia, las laminas cambian solas. La muestra de referencia es siempre
+la misma: N = 14.751 observaciones, la que produce
+`construir_muestra_analisis()` en `scripts/02_cleaning.R`.
+
+Las cifras de la lamina de diciembre entran como macros desde
+`views/tables/cifras_deriva.tex`, que escribe `03_descriptives.R`.
+
+Insumos de esta seccion:
+  * scripts/30_prediction.R
+  * views/tables/cifras_pred.tex            (macros con las cifras del texto)
+  * views/tables/rmse_pred.tex              (tabla de RMSE de validacion)
+  * views/tables/importancia_pred.tex       (ranking de importancia)
+  * views/figures/deriva_temporal.png       (por que el corte es temporal)
+  * views/figures/dependencia_horas.png     (dependencia de las predicciones)
+--------------------------------------------------------------------- -->

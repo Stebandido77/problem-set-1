@@ -1,6 +1,11 @@
-# <tipo>(<alcance>): <resumen en imperativo, <= 72 caracteres>
+# <tipo>(<alcance>): <descripcion en imperativo, <= 72 caracteres>
 #
-# Tipos: feat | fix | refactor | docs | data | chore | test
+# Tipos (en ingles): feat | fix | refactor | docs | data | chore | test
+# Descripcion: en espanol, imperativo, sin punto final.
+#
+#   feat(age): estima los perfiles edad-ingreso incondicional y condicional
+#   fix(cleaning): descarta el ingreso laboral cero antes de tomar logaritmos
+#   docs(readme): documenta el pipeline de reproduccion
 #
 # Cuerpo (opcional): que cambio y por que, no como.
 #

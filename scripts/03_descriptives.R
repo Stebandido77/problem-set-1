@@ -19,34 +19,10 @@
 # ----------------------------------------------------------------------------
 
 source(here::here("scripts", "02_cleaning.R"))
-
-dir_figuras <- here::here("views", "figures")
-dir.create(dir_figuras, recursive = TRUE, showWarnings = FALSE)
-
-# Un unico tema para las cinco figuras: si cada una trae su propio estilo, el
-# deck se lee como cinco trabajos distintos.
-tema_ps <- theme_minimal(base_size = 11) +
-  theme(
-    plot.title       = element_text(face = "bold", size = 11.5),
-    plot.subtitle    = element_text(size = 9, colour = "grey30"),
-    panel.grid.minor = element_blank()
-  )
-
-#' Guardar una figura en views/figures/ con tamano y resolucion uniformes
-#'
-#' @param grafico Objeto de ggplot2.
-#' @param nombre Nombre del archivo, con extension (por ejemplo
-#'   `"ingreso_por_edad.png"`). La ruta la pone la funcion.
-#' @param ancho,alto Pulgadas. Los defaults estan calibrados para una lamina
-#'   de beamer; solo se cambian cuando la figura lleva facetas.
-#' @return La ruta del archivo, de forma invisible (lo que devuelve `ggsave`).
-#' @examples
-#' # guardar_fig(p_edad, "ingreso_por_edad.png")
-#' # guardar_fig(p_log, "dist_ingreso_log.png", ancho = 8.4)
-guardar_fig <- function(grafico, nombre, ancho = 7.6, alto = 4.6) {
-  ggsave(file.path(dir_figuras, nombre), grafico, width = ancho,
-         height = alto, dpi = 300)
-}
+source(here::here("scripts", "functions", "edad_pico.R"))
+# `tema_ps`, `guardar_fig()` y `num_es()`: las figuras de esta seccion y las de
+# la Seccion 1 van al mismo deck y comparten estilo.
+source(here::here("scripts", "functions", "figuras.R"))
 
 #' Coeficiente de asimetria muestral (tercer momento estandarizado)
 #'
@@ -62,24 +38,6 @@ guardar_fig <- function(grafico, nombre, ancho = 7.6, alto = 4.6) {
 #' # asimetria(muestra_analisis$y_total_m)    # 8,49 en niveles
 #' # asimetria(muestra_analisis$ingreso_log)  # -0,348 en logaritmos
 asimetria <- function(x) mean((x - mean(x))^3) / sd(x)^3
-
-#' Formatear un numero para un subtitulo, en convencion espanola
-#'
-#' Existe para que las cifras de las figuras se INTERPOLEN desde el objeto que
-#' las produjo en vez de escribirse a mano. Un numero tecleado en un subtitulo
-#' sobrevive a los cambios de muestra sin avisar; uno interpolado, no.
-#'
-#' @param x Escalar numerico.
-#' @param digitos Decimales a mostrar.
-#' @param signo Si `TRUE`, fuerza el signo explicito (`+` o `-`).
-#' @return Cadena con "," como separador decimal.
-#' @examples
-#' # num_es(0.008690, 4, signo = TRUE)  # "+0,0087"
-#' # num_es(0.757700, 2)                # "0,76"
-num_es <- function(x, digitos, signo = FALSE) {
-  formatC(x, format = "f", digits = digitos, decimal.mark = ",",
-          flag = if (signo) "+" else "")
-}
 
 # 1. Por que el outcome va en logaritmos --------------------------------------
 # `y_total_m` esta fuertemente sesgada a la derecha (asimetria 8,49): en
@@ -137,9 +95,12 @@ medias_por_edad <- muestra_analisis |>
   summarise(n = n(), media_log = mean(ingreso_log), .groups = "drop") |>
   filter(n >= 20)
 
-ajuste_edad <- lm(ingreso_log ~ age + edad_2, data = muestra_analisis)
-coef_edad   <- coef(ajuste_edad)
-edad_pico   <- -coef_edad[["age"]] / (2 * coef_edad[["edad_2"]])
+# La razon -b_age / (2 * b_edad_2) se calcula con `edad_pico()` y no a mano:
+# la formula vive en un solo archivo para que la figura descriptiva y la
+# Seccion 1 no puedan discrepar. El objeto se llama `edad_pico_ajuste` y no
+# `edad_pico` justamente para no sombrear a la funcion en el global env.
+ajuste_edad      <- lm(ingreso_log ~ age + edad_2, data = muestra_analisis)
+edad_pico_ajuste <- edad_pico(ajuste_edad)
 grilla_edad <- tibble(
   age = seq(min(medias_por_edad$age), max(medias_por_edad$age), by = 0.5)
 )
@@ -150,10 +111,11 @@ p_edad <- ggplot(medias_por_edad, aes(age, media_log)) +
   geom_point(aes(size = n), colour = "grey55", alpha = 0.65) +
   geom_line(data = grilla_edad, aes(age, ajuste), colour = "steelblue4",
             linewidth = 0.9) +
-  geom_vline(xintercept = edad_pico, linetype = "dashed",
+  geom_vline(xintercept = edad_pico_ajuste, linetype = "dashed",
              colour = "firebrick", linewidth = 0.4) +
-  annotate("text", x = edad_pico + 1.2, y = min(medias_por_edad$media_log),
-           label = sprintf("edad pico ~ %.0f", edad_pico), hjust = 0,
+  annotate("text", x = edad_pico_ajuste + 1.2,
+           y = min(medias_por_edad$media_log),
+           label = sprintf("edad pico ~ %.0f", edad_pico_ajuste), hjust = 0,
            size = 3.2, colour = "firebrick") +
   scale_size_continuous(range = c(0.8, 3.4), guide = "none") +
   labs(
@@ -322,7 +284,7 @@ message("\n--- 1. skewness of the outcome ---")
 message("  level: ", round(asimetria_nivel, 2),
         " | log: ", round(asimetria_log, 3))
 message("\n--- 2. age profile ---")
-message("  peak age from the quadratic: ", round(edad_pico, 1))
+message("  peak age from the quadratic: ", round(edad_pico_ajuste, 1))
 message("\n--- 3. unconditional gender gap ---")
 print(as.data.frame(resumen_brecha))
 message("  raw gap (log points): ", round(brecha_cruda, 4),
@@ -338,3 +300,31 @@ message("\n--- December dummy alone (cited in the figure subtitle) ---")
 print(summary(test_dic)$coefficients)
 message("\n--- December dummy on top of a month trend ---")
 print(summary(test_deriva)$coefficients)
+
+
+# -----------------------------------------------------------------------------
+# Macros con las cifras del chequeo de deriva temporal
+# -----------------------------------------------------------------------------
+# Las cita el deck de la Seccion 3 para justificar que el corte temporal 1-7 /
+# 8-10 no introduce un salto de nivel entre folds. Se exportan como macros para
+# que ninguna se teclee en las laminas.
+
+coef_deriva <- summary(test_deriva)$coefficients["I(mes == 12)TRUE", ]
+
+cifras_deriva <- c(
+  sprintf("\\newcommand{\\CoefDicSolo}{%s}",
+          num_es(coef_dic[["Estimate"]], 4, signo = TRUE)),
+  sprintf("\\newcommand{\\PDicSolo}{%s}",
+          num_es(coef_dic[["Pr(>|t|)"]], 2)),
+  sprintf("\\newcommand{\\CoefDicTend}{%s}",
+          num_es(coef_deriva[["Estimate"]], 3, signo = TRUE)),
+  sprintf("\\newcommand{\\PDicTend}{%s}",
+          num_es(coef_deriva[["Pr(>|t|)"]], 2))
+)
+
+writeLines(
+  cifras_deriva,
+  here::here("views", "tables", "cifras_deriva.tex")
+)
+
+message("cifras_deriva.tex written: ", length(cifras_deriva), " macros.")

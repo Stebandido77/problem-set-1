@@ -1,0 +1,30 @@
+\begin{table}
+\centering
+\begin{talltblr}[         %% tabularray outer open
+caption={Perfil edad-ingreso: especificacion incondicional y condicional},
+note{}={* p \num{< 0.1}, ** p \num{< 0.05}, *** p \num{< 0.01}},
+note{ }={Notas: GEIH 2018, Bogota. Muestra completa de analisis; constante estimada y omitida. IC de la edad pico: bootstrap percentil, 1.000 replicas, semilla 1234. El R2 de (2) sube por construccion.},
+]                     %% tabularray outer close
+{                     %% tabularray inner open
+colspec={Q[]Q[]Q[]},
+hline{2}={1-3}{solid, black, 0.05em},
+hline{8}={1-3}{solid, black, 0.05em},
+hline{1}={1-3}{solid, black, 0.08em},
+hline{13}={1-3}{solid, black, 0.08em},
+column{2-3}={}{halign=c},
+column{1}={}{halign=l},
+}                     %% tabularray inner close
+& (1) Incondicional & (2) Condicional \\
+Edad & 0.08348*** & 0.06971*** \\
+& (0.00321) & (0.00293) \\
+Edad al cuadrado & -0.00103*** & -0.00080*** \\
+& (0.00004) & (0.00003) \\
+Horas trabajadas (semana) &  & 0.01320*** \\
+&  & (0.00044) \\
+Dummies de posicion ocup. & No & Si \\
+Edad pico (anos) & 40,62 & 43,61 \\
+IC 95\% bootstrap (percentil) & [40,06; 41,17] & [42,88; 44,37] \\
+Num.Obs. & 14751 & 14751 \\
+R2 & 0.050 & 0.227 \\
+\end{talltblr}
+\end{table}
