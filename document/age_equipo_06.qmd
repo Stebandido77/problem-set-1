@@ -60,7 +60,7 @@ define contra que perfil comparar un ingreso reportado.
 
 ## Evidencia descriptiva: el perfil es concavo
 
-![](../views/figures/ingreso_por_edad.png){height=70%}
+![](../views/figures/ingreso_por_edad.png){width=88%}
 
 \footnotesize La concavidad es una **prediccion contrastable**, no un supuesto:
 si el cuadratico fuera positivo o indistinguible de cero, la edad pico seria un

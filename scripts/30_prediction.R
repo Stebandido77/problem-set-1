@@ -27,8 +27,9 @@
 #      diciembre da b = +0,0087 (p = 0,76); sobre una tendencia mensual,
 #      b = -0,018 (p = 0,59). Ninguna se distingue de cero, porque la prima
 #      de servicios ya entra en `y_total_m` mensualizada. La evidencia esta
-#      en `views/figures/deriva_temporal.png`, cuyo subtitulo cita la primera
-#      de las dos.
+#      en `views/figures/deriva_temporal.png`, que muestra las medias por mes
+#      con los dos folds rotulados en la leyenda; las cifras de diciembre no
+#      van en la figura, se discuten en su propia lamina del deck.
 #
 # El mismo razonamiento vale para la agrupacion de `oficio`: el umbral de 30
 # observaciones se calcula SOLO sobre los chunks 1-7 y despues se aplica a los

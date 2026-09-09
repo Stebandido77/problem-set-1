@@ -61,15 +61,14 @@ mismo**, y esta seccion lo mide.
 
 ## El corte es temporal, no aleatorio
 
-Los 10 chunks estan ordenados por mes de encuesta. El corte 1-7 / 8-10 que fija
-el enunciado es entonces un corte en el **tiempo**. Dos consecuencias:
-
 - **`mes` y `chunk_id` no pueden ser predictores**: cualquiera de los dos
   filtra la particion y el RMSE dejaria de medir error fuera de muestra.
 - Leerlo como error fuera de muestra ordinario exige que **no haya salto de
   nivel** entre los dos folds.
 
-![](../views/figures/deriva_temporal.png){height=42%}
+## El corte es temporal, no aleatorio
+
+![](../views/figures/deriva_temporal.png){width=100%}
 
 ## Sin salto de diciembre
 
@@ -206,7 +205,7 @@ ingreso **mensual**, no salario por hora.
 
 ## Como dependen las predicciones de las horas
 
-![](../views/figures/dependencia_horas.png){height=62%}
+![](../views/figures/dependencia_horas.png){width=88%}
 
 \footnotesize Para cada valor de horas se mantienen intactas las demas
 caracteristicas de validacion, se reemplaza solo `horas` y se promedian las

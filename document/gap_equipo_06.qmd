@@ -62,7 +62,7 @@ modelo que lo ignore yerra sistematicamente en media poblacion.
 
 ## Evidencia descriptiva: la brecha cruda
 
-![](../views/figures/ingreso_por_genero.png){height=68%}
+![](../views/figures/ingreso_por_genero.png){width=88%}
 
 \footnotesize La diferencia de medias en logaritmos es \BrechaCruda, es decir
 \BrechaCrudaPct\%. Es el punto de partida, no el resultado: no distingue entre
@@ -160,7 +160,7 @@ logaritmos, ninguna de las dos muerde.
 
 ## Perfiles edad-ingreso por sexo
 
-![](../views/figures/perfil_edad_ingreso.png){height=62%}
+![](../views/figures/perfil_edad_ingreso.png){width=88%}
 
 \footnotesize
 Edad pico: \textbf{hombres \PicoHombres\ anos} (IC 95\% \ICPicoHombres),
