@@ -175,6 +175,66 @@ msummary(
   output = here::here("views", "tables", "tabla_brecha_genero.tex")
 )
 
+
+
+# -----------------------------------------------------------------------------
+# 4b. Tabla COMPACTA para el deck
+# -----------------------------------------------------------------------------
+# La tabla completa tiene ~30 filas de coeficientes y no cabe en una lamina de
+# beamer: un flotante no se puede partir entre laminas. El enunciado no pide
+# todos los coeficientes, pide el de genero con sus DOS errores estandar y una
+# medida de ajuste, de modo que esta version reporta exactamente eso.
+#
+# El error bootstrap se calculo solo para la especificacion preferida (2), que
+# es la que se estima por FWL. Las otras dos celdas quedan vacias a proposito:
+# poner un numero ahi seria inventarlo.
+
+filas_extra <- data.frame(
+  term = c(
+    "EE bootstrap",
+    "Controles"
+  ),
+  m1 = c(
+    "",
+    "Ninguno"
+  ),
+  m2 = c(
+    sprintf("(%.5f)", se_bootstrap_m2),
+    "Edad, educ, estrato"
+  ),
+  m3 = c(
+    "",
+    "+ puesto"
+  ),
+  stringsAsFactors = FALSE
+)
+
+attr(filas_extra, "position") <- c(3, 4)
+
+msummary(
+  modelos,
+  vcov      = "HC1",
+  stars     = TRUE,
+  coef_map  = c("mujer" = "Mujer"),
+  gof_map   = c("r.squared", "nobs"),
+  add_rows  = filas_extra,
+  title     = paste(
+    "Brecha de ingreso laboral por genero:",
+    "errores estandar analiticos y bootstrap"
+  ),
+  notes = paste(
+    "Entre parentesis, errores estandar. La fila EE bootstrap corresponde a",
+    sprintf("%s replicas y se calculo solo para la", 
+            formatC(nrow(res_boot_brecha$t), format = "d", big.mark = ".")),
+    "especificacion preferida. Variable dependiente: log del ingreso laboral",
+    "mensual. GEIH 2018, Bogota."
+  ),
+  output = here::here("views", "tables", "brecha_compacta.tex")
+)
+
+message("brecha_compacta.tex written.")
+
+
 # -----------------------------------------------------------------------------
 # 5. Estimación Edad Pico e Intervalos de Confianza por Percentiles (Bootstrap)
 # -----------------------------------------------------------------------------
@@ -322,3 +382,178 @@ ggsave(
   width = 8,
   height = 5
 )
+
+# =============================================================================
+# 7. DIAGNOSTICO DE SELECCION POR NO RESPUESTA DE INGRESO
+# =============================================================================
+# La muestra analitica excluye a los ocupados adultos sin `y_total_m`. Si esa
+# exclusion no fuera neutral por sexo, la brecha estimada estaria sesgada.
+#
+# El DANE publica una serie imputada (`impaes`) para una parte de esas
+# personas, de modo que el sesgo se puede ACOTAR en vez de solo mencionarlo:
+# se reestima la brecha cruda sobre una muestra ampliada que usa el ingreso
+# imputado donde el observado falta.
+#
+# Es un analisis de SENSIBILIDAD, no una cota formal: descansa en que la
+# imputacion del DANE sea correcta.
+#
+# Este bloque lee los chunks crudos porque necesita las filas que
+# `02_cleaning.R` ya descarto.
+
+crudo_seleccion <- do.call(
+  rbind,
+  lapply(
+    seq_len(10),
+    function(i) {
+      readRDS(here::here("stores", "raw", sprintf("chunk_%02d.rds", i)))
+    }
+  )
+)
+
+# Ocupados de 18 anos o mas: el universo ANTES del filtro de ingreso.
+universo_ocupados <- crudo_seleccion |>
+  dplyr::filter(ocu == 1, age >= 18)
+
+excluidos_ingreso <- universo_ocupados |>
+  dplyr::filter(is.na(y_total_m))
+
+# De los excluidos, aquellos a los que el DANE si imputo ingreso.
+excluidos_imputados <- excluidos_ingreso |>
+  dplyr::filter(!is.na(impaes))
+
+# `sex` viene 1 = hombre en el diccionario del DANE.
+pct_hombres_imputados <- 100 * mean(excluidos_imputados$sex == 1, na.rm = TRUE)
+pct_hombres_muestra   <- 100 * mean(muestra_analisis$mujer == 0)
+
+# Independientes = cuenta propia (relab 4) + patron o empleador (relab 5).
+# Es la definicion amplia: son los dos grupos cuyo ingreso no pasa por una
+# nomina y que por eso mismo puede no quedar registrado.
+pct_independientes_imputados <- 100 * mean(
+  excluidos_imputados$relab %in% c(4, 5),
+  na.rm = TRUE
+)
+
+# Muestra ampliada: mismos filtros de `02_cleaning.R`, pero usando el ingreso
+# imputado donde el observado falta.
+muestra_ampliada <- universo_ocupados |>
+  dplyr::mutate(
+    y_ampliado = dplyr::coalesce(y_total_m, impaes)
+  ) |>
+  dplyr::filter(
+    !is.na(y_ampliado),
+    y_ampliado > 0,
+    totalHoursWorked <= 112,
+    !is.na(maxEducLevel)
+  ) |>
+  dplyr::mutate(
+    ingreso_log = log(y_ampliado),
+    mujer       = as.integer(sex == 0)
+  )
+
+brecha_base     <- coef(m1)[["mujer"]]
+brecha_ampliada <- coef(
+  lm(ingreso_log ~ mujer, data = muestra_ampliada)
+)[["mujer"]]
+
+cat("\n--- SELECCION POR NO RESPUESTA DE INGRESO ---\n")
+cat(sprintf("  excluidos por ingreso no observado : %d\n",
+            nrow(excluidos_ingreso)))
+cat(sprintf("  de ellos, con imputacion del DANE  : %d\n",
+            nrow(excluidos_imputados)))
+cat(sprintf("  %% hombres entre los imputados      : %.1f\n",
+            pct_hombres_imputados))
+cat(sprintf("  %% hombres en la muestra analitica  : %.1f\n",
+            pct_hombres_muestra))
+cat(sprintf("  %% independientes entre imputados   : %.1f\n",
+            pct_independientes_imputados))
+cat(sprintf("  brecha cruda base      (N = %5d) : %.4f\n",
+            nrow(muestra_analisis), brecha_base))
+cat(sprintf("  brecha cruda ampliada  (N = %5d) : %.4f\n",
+            nrow(muestra_ampliada), brecha_ampliada))
+cat(sprintf("  desplazamiento                     : %+.4f\n",
+            brecha_ampliada - brecha_base))
+
+
+# =============================================================================
+# 8. MACROS DE LATEX CON LAS CIFRAS DE LA SECCION
+# =============================================================================
+# El deck interpola estas macros en vez de teclear las cifras. Si la muestra
+# cambia, las laminas cambian solas.
+
+num_es_gap <- function(x, digitos, signo = FALSE) {
+  formatC(
+    x,
+    format = "f",
+    digits = digitos,
+    decimal.mark = ",",
+    big.mark = ".",
+    flag = if (signo) "+" else ""
+  )
+}
+
+cifras_gap <- c(
+  sprintf("\\newcommand{\\BrechaCruda}{%s}",
+          num_es_gap(coef(m1)[["mujer"]], 4)),
+  sprintf("\\newcommand{\\BrechaCrudaPct}{%s}",
+          num_es_gap(100 * (exp(coef(m1)[["mujer"]]) - 1), 1)),
+  sprintf("\\newcommand{\\BrechaCond}{%s}",
+          num_es_gap(coef(m2)[["mujer"]], 4)),
+  sprintf("\\newcommand{\\BrechaCondPct}{%s}",
+          num_es_gap(100 * (exp(coef(m2)[["mujer"]]) - 1), 1)),
+  sprintf("\\newcommand{\\BrechaBadControls}{%s}",
+          num_es_gap(coef(m3)[["mujer"]], 4)),
+  sprintf("\\newcommand{\\SEAnalitico}{%s}",
+          num_es_gap(se_analitico_m2, 5)),
+  sprintf("\\newcommand{\\SEBootstrap}{%s}",
+          num_es_gap(se_bootstrap_m2, 5)),
+  sprintf("\\newcommand{\\PicoHombres}{%s}",
+          num_es_gap(res_boot_picos$t0[1], 1)),
+  sprintf("\\newcommand{\\PicoMujeres}{%s}",
+          num_es_gap(res_boot_picos$t0[2], 1)),
+  sprintf("\\newcommand{\\ICPicoHombres}{[%s; %s]}",
+          num_es_gap(ic_hombres$percent[4], 1),
+          num_es_gap(ic_hombres$percent[5], 1)),
+  sprintf("\\newcommand{\\ICPicoMujeres}{[%s; %s]}",
+          num_es_gap(ic_mujeres$percent[4], 1),
+          num_es_gap(ic_mujeres$percent[5], 1)),
+  sprintf("\\newcommand{\\RCuadCrudo}{%s}",
+          num_es_gap(summary(m1)$r.squared, 4)),
+  sprintf("\\newcommand{\\RCuadCondGap}{%s}",
+          num_es_gap(summary(m2)$r.squared, 4)),
+  sprintf("\\newcommand{\\NGap}{%s}",
+          formatC(nrow(muestra_analisis), format = "d", big.mark = ".")),
+  sprintf("\\newcommand{\\NExcluidos}{%s}",
+          formatC(nrow(excluidos_ingreso), format = "d", big.mark = ".")),
+  sprintf("\\newcommand{\\NImputados}{%s}",
+          formatC(nrow(excluidos_imputados), format = "d", big.mark = ".")),
+  sprintf("\\newcommand{\\NAmpliada}{%s}",
+          formatC(nrow(muestra_ampliada), format = "d", big.mark = ".")),
+  sprintf("\\newcommand{\\PctHombresImputados}{%s}",
+          num_es_gap(pct_hombres_imputados, 1)),
+  sprintf("\\newcommand{\\PctHombresMuestra}{%s}",
+          num_es_gap(pct_hombres_muestra, 1)),
+  sprintf("\\newcommand{\\PctIndependientes}{%s}",
+          num_es_gap(pct_independientes_imputados, 1)),
+  sprintf("\\newcommand{\\BrechaAmpliada}{%s}",
+          num_es_gap(brecha_ampliada, 4)),
+  sprintf("\\newcommand{\\DesplazaBrecha}{%s}",
+          num_es_gap(brecha_ampliada - brecha_base, 4, signo = TRUE)),
+  # Por que la brecha CRECE al condicionar: las mujeres de la muestra estan
+  # mas educadas que los hombres, de modo que compararlas a educacion igual
+  # deja a la vista una desventaja mayor.
+  sprintf("\\newcommand{\\PctSuperiorMujeres}{%s}",
+          num_es_gap(100 * mean(
+            muestra_analisis$educ[muestra_analisis$mujer == 1] == "7"), 1)),
+  sprintf("\\newcommand{\\PctSuperiorHombres}{%s}",
+          num_es_gap(100 * mean(
+            muestra_analisis$educ[muestra_analisis$mujer == 0] == "7"), 1)),
+  sprintf("\\newcommand{\\BootRepsGap}{%s}",
+          formatC(nrow(res_boot_brecha$t), format = "d", big.mark = "."))
+)
+
+writeLines(
+  cifras_gap,
+  here::here("views", "tables", "cifras_gap.tex")
+)
+
+message("cifras_gap.tex written: ", length(cifras_gap), " macros.")
