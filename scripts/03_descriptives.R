@@ -221,9 +221,11 @@ guardar_fig(p_horas, "ingreso_por_horas.png")
 # alternativa de cualquier deterioro fuera de muestra.
 # Dos especificaciones distintas del mismo chequeo, y conviene no
 # confundirlas al citarlas:
-#   * `test_dic`    : diciembre como dummy sola. Es la que cita el subtitulo
-#                     de la figura, porque la figura muestra medias por mes
-#                     sin ninguna tendencia de fondo.
+#   * `test_dic`    : diciembre como dummy sola. Es la que corresponde a esta
+#                     figura, porque la figura muestra medias por mes sin
+#                     ninguna tendencia de fondo. Sus cifras NO van en el
+#                     subtitulo: salen por `cifras_deriva.tex` y las cita la
+#                     lamina siguiente del deck, que es donde se discuten.
 #   * `test_deriva` : diciembre y noviembre sobre una tendencia mensual. Es la
 #                     que se imprime al final y la que cita `30_prediction.R`.
 # Ninguna de las dos encuentra un salto en diciembre.
@@ -239,15 +241,36 @@ ingreso_mensual <- muestra_analisis |>
             se = sd(ingreso_log) / sqrt(n()), .groups = "drop") |>
   mutate(lo = media_log - 1.96 * se, hi = media_log + 1.96 * se)
 
+# Las dos particiones van como una capa con `fill` MAPEADO, no como
+# `annotate()`. Antes la banda gris se dibujaba suelta y se rotulaba con dos
+# textos dentro del panel: al reducir la figura en la lamina esos rotulos
+# quedaban ilegibles y la banda pasaba a ser un rectangulo gris sin explicar.
+# Mapeando el relleno, el corte temporal entra a la leyenda y se lee al tamano
+# que sea.
+bandas_particion <- data.frame(
+  particion = factor(
+    c("Entrenamiento (chunks 1-7)", "Validacion (chunks 8-10)"),
+    levels = c("Entrenamiento (chunks 1-7)", "Validacion (chunks 8-10)")
+  ),
+  xmin = c(-Inf, 8.5),
+  xmax = c(8.5, Inf)
+)
+
 p_deriva <- ggplot(ingreso_mensual, aes(mes, media_log)) +
-  annotate("rect", xmin = 8.5, xmax = 12.5, ymin = -Inf, ymax = Inf,
-           fill = "grey85", alpha = 0.6) +
-  annotate("text", x = 10.5, y = max(ingreso_mensual$hi),
-           label = "validacion (chunks 8-10)", size = 3.1, colour = "grey30",
-           vjust = 1.4) +
-  annotate("text", x = 4.5, y = max(ingreso_mensual$hi),
-           label = "entrenamiento (chunks 1-7)", size = 3.1, colour = "grey30",
-           vjust = 1.4) +
+  geom_rect(
+    data = bandas_particion, inherit.aes = FALSE,
+    aes(xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf, fill = particion),
+    alpha = 0.6
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Entrenamiento (chunks 1-7)" = "white",
+      "Validacion (chunks 8-10)"   = "grey85"
+    )
+  ) +
+  # El relleno del fold de entrenamiento es blanco sobre panel blanco, de modo
+  # que sin borde su llave de leyenda seria invisible.
+  guides(fill = guide_legend(override.aes = list(colour = "grey70"))) +
   geom_hline(yintercept = mean(muestra_analisis$ingreso_log),
              linetype = "dashed", colour = "grey50", linewidth = 0.4) +
   geom_errorbar(aes(ymin = lo, ymax = hi), width = 0.18, colour = "grey40") +
@@ -257,20 +280,10 @@ p_deriva <- ggplot(ingreso_mensual, aes(mes, media_log)) +
   labs(
     x = "Mes de la encuesta (2018)",
     y = "Media de log(ingreso laboral mensual)",
-    title = "El ingreso laboral no presenta deriva temporal dentro de 2018",
-    subtitle = sprintf(
-      paste(
-        "Los chunks estan ordenados por mes: el corte 1-7 / 8-10 es",
-        "temporal.\nEl mes 9 se reparte entre ambos folds. Diciembre no",
-        "salta: b = %s log points (%s%%), p = %s.\nLa prima de servicios ya",
-        "viene mensualizada en y_total_m."
-      ),
-      num_es(b_dic, 4, signo = TRUE),
-      num_es(100 * (exp(b_dic) - 1), 2, signo = TRUE),
-      num_es(p_dic, 2)
-    )
+    title = "El ingreso laboral no presenta deriva temporal dentro de 2018"
   ) +
-  tema_ps
+  tema_ps +
+  theme(legend.position = "bottom", legend.title = element_blank())
 guardar_fig(p_deriva, "deriva_temporal.png")
 
 test_deriva <- lm(ingreso_log ~ mes + I(mes == 11) + I(mes == 12),
@@ -296,7 +309,7 @@ message("\n--- 5. monthly mean/median of log(y_total_m) ---")
 print(as.data.frame(
   ingreso_mensual[, c("mes", "n", "media_log", "mediana_log")]
 ))
-message("\n--- December dummy alone (cited in the figure subtitle) ---")
+message("\n--- December dummy alone (exported as CoefDicSolo / PDicSolo) ---")
 print(summary(test_dic)$coefficients)
 message("\n--- December dummy on top of a month trend ---")
 print(summary(test_deriva)$coefficients)
