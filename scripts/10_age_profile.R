@@ -30,4 +30,3 @@
 
 source(here::here("scripts", "02_cleaning.R"))
 source(here::here("scripts", "functions", "edad_pico.R"))
-

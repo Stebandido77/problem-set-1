@@ -302,14 +302,22 @@ p_edad <- ggplot(
   labs(
     title = "Perfiles Edad-Ingreso Predichos por Género",
     subtitle = paste(
-      "Predicciones promedio ajustadas sobre las características de la",
-      "muestra (Líneas punteadas = Edades pico)"
+      strwrap(
+        paste(
+          "Predicciones promedio ajustadas sobre las características de la muestra",
+          "(Líneas punteadas = Edades pico).",
+          "Edad Pico Mujeres: 40.13 años. Edad Pico Hombres: 44.47 años"
+        ),
+        width = 75
+      ),
+      collapse = "\n"
     ),
     x = "Edad (Años)",
     y = "Log(Ingreso Laboral Mensual)",
     color = "Género"
   ) +
-  theme_minimal()  # Tema visual minimalista para la gráfica.
+  theme_minimal() + # Tema visual minimalista para la gráfica.
+  theme(plot.subtitle = element_text(hjust = 0, lineheight = 1.1))
 
 # Creación del directorio de salida para guardar la figura si no existe.
 dir.create(here::here("views", "figures"),
