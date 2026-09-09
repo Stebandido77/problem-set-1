@@ -6,8 +6,8 @@ Universidad de los Andes — Facultad de Economía
 Modelos de ingreso laboral individual con microdatos de la **GEIH 2018 (Bogotá)**,
 orientados a la pregunta que organiza el problem set:
 
-> *Qué puede decirle un modelo de ingreso laboral a la autoridad tributaria sobre
-> quién podría estar subreportando, y dónde fallan sus predicciones?*
+> *¿Qué puede decirle un modelo de ingreso laboral a la autoridad tributaria
+> sobre quién podría estar subreportando, y dónde fallan sus predicciones?*
 
 La respuesta corta está en la sección [Hallazgos principales](#hallazgos-principales):
 el modelo más predictivo reduce el error en 36,5% frente a no usar ningún
