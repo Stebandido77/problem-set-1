@@ -1,7 +1,7 @@
 ---
 title: "Seccion 1: Perfil Edad-Ingreso Laboral"
-subtitle: "Problem Set 1 — MECA 4107 — Equipo XX"
-author: "Integrantes"
+subtitle: "Problem Set 1 — MECA 4107 — Equipo 06"
+author: "Neislen Garcia | Diego Felipe Rodriguez | Esteban Labastidas"
 format:
   beamer:
     theme: metropolis
@@ -24,11 +24,11 @@ header-includes:
 
 ## Result Overview
 
-**El ingreso laboral mensual alcanza su maximo a los \PicoIncond\ anos**
+\textbf{El ingreso laboral mensual alcanza su maximo a los \PicoIncond\ anos}
 (IC 95\% bootstrap: \ICIncond).
 
 Controlando por horas trabajadas y posicion ocupacional, el maximo se corre a
-los **\PicoCond\ anos** (IC 95\%: \ICCond).
+los \textbf{\PicoCond\ anos} (IC 95\%: \ICCond).
 
 - Las dos edades pico caen **dentro** del rango de edad observado
   (\RangoEdad\ anos): son interpolacion, no extrapolacion.
@@ -143,8 +143,7 @@ La (2) no es la version corregida de la (1): responde otra pregunta.
 
 ## Por que el pico se corre hacia adelante
 
-El pico pasa de \PicoIncond\ a \PicoCond\ anos: **se retrasa \DesplazaPico\
-anos** al fijar horas y posicion. La direccion es la que predice el mecanismo:
+El pico pasa de \PicoIncond\ a \PicoCond\ anos: \textbf{se retrasa \DesplazaPico\ anos} al fijar horas y posicion. La direccion es la que predice el mecanismo:
 
 - Las horas **caen con la edad**: \HorasJovenes\ h/semana entre los 18 y los
   45 anos, \HorasMayores\ h/semana de los 66 en adelante.
@@ -174,10 +173,10 @@ precio del trabajo.
 1. El perfil edad-ingreso es **concavo**, como predice la teoria de capital
    humano: el termino cuadratico es negativo y muy significativo en las dos
    especificaciones.
-2. El ingreso laboral mensual llega a su maximo a los **\PicoIncond\ anos**
+2. El ingreso laboral mensual llega a su maximo a los \textbf{\PicoIncond\ anos}
    (IC 95\%: \ICIncond), dentro del rango observado (\RangoEdad).
 3. A horas y posicion ocupacional fijas el maximo se corre a los
-   **\PicoCond\ anos** (IC 95\%: \ICCond). Los intervalos no se solapan.
+   \textbf{\PicoCond\ anos} (IC 95\%: \ICCond). Los intervalos no se solapan.
 4. La diferencia de \DesplazaPico\ anos mide **cuanto del declive observado es
    oferta laboral y no precio del trabajo**.
 
