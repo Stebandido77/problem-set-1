@@ -906,9 +906,9 @@ grafica_horas <- ggplot2::ggplot(
 ) +
   ggplot2::geom_line(linewidth = 1) +
   ggplot2::labs(
-    x = "Hours worked",
-    y = "Average predicted log income",
-    title = "Predicted Labor Income and Hours Worked"
+    x = "Horas trabajadas por semana",
+    y = "Ingreso laboral mensual predicho (log, promedio)",
+    title = "Ingreso predicho y horas trabajadas"
   ) +
   ggplot2::theme_minimal()
 
