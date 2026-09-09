@@ -20,7 +20,7 @@ resultado transversal del trabajo.
 | Nombre | Usuario GitHub |
 |---|---|
 | Neislen Garcia | `NeislenG` |
-| Diego Felipe Rodriguez [apellido completo PENDIENTE] | `dfeliperodriguezv-create` |
+| Diego Felipe Rodriguez| `dfeliperodriguezv-create` |
 | Esteban Labastidas | `Stebandido77` |
 
 ## Hallazgos principales
